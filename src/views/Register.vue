@@ -348,15 +348,32 @@
 
           <!-- Step 5: Product Selection -->
           <div v-show="currentStep === 5" class="form-step">
+            <div class="package-selector-section mb-3">
+              <label for="paket_select_step5" class="form-label">
+                <i class="bi bi-box me-2"></i>Выбранный пакет
+              </label>
+              <select
+                class="form-select"
+                id="paket_select_step5"
+                v-model.number="formData.cabinet.paket_id"
+                @change="onPackageChange"
+              >
+                <option :value="null">Выберите пакет</option>
+                <option v-for="paket in pakets" :key="paket.id" :value="paket.id">
+                  {{ paket.name }} - ${{ paket.price }}
+                </option>
+              </select>
+            </div>
+
             <div class="package-info-header">
               <div class="package-selected">
-                <span class="text-muted">Выбранный пакет:</span>
-                <span class="fw-bold">{{ selectedPackage?.name || '-' }} - ${{ selectedPackage?.price || 0 }}</span>
+                <span class="text-muted">Сумма пакета:</span>
+                <span class="fw-bold">${{ selectedPackage?.price || 0 }}</span>
               </div>
               <div class="package-remaining">
-                <span class="text-muted">Остаток:</span>
-                <span class="fw-bold" :class="remainingAmount >= 0 ? 'text-success' : 'text-danger'">
-                  ${{ remainingAmount.toFixed(2) }}
+                <span class="text-muted">Выбрано товаров:</span>
+                <span class="fw-bold" :class="selectedProductsTotal >= (selectedPackage?.price || 0) ? 'text-success' : 'text-warning'">
+                  ${{ selectedProductsTotal.toFixed(2) }}
                 </span>
               </div>
             </div>
@@ -377,7 +394,7 @@
                 <div class="product-info">
                   <h6 class="product-name">{{ product.name }}</h6>
                   <p class="product-description">{{ product.description || product.sku || '-' }}</p>
-                  <div class="product-price">${{ product.price }}</div>
+                  <div class="product-price">${{ getProductPrice(product) }}</div>
                 </div>
                 <div class="product-actions">
                   <div v-if="isProductSelected(product.id)" class="quantity-controls">
@@ -430,15 +447,17 @@
                 <span class="summary-label">Сумма товаров:</span>
                 <span class="summary-value">${{ selectedProductsTotal.toFixed(2) }}</span>
               </div>
-              <div v-if="remainingAmount < 0" class="summary-row error-row">
-                <span class="summary-label text-danger">Превышение лимита:</span>
-                <span class="summary-value text-danger">${{ Math.abs(remainingAmount).toFixed(2) }}</span>
+              <div class="summary-row">
+                <span class="summary-label">Минимум (пакет):</span>
+                <span class="summary-value">${{ selectedPackage?.price || 0 }}</span>
               </div>
-              <div class="summary-row total-row">
-                <span class="summary-label">Остаток по пакету:</span>
-                <span class="summary-value" :class="remainingAmount >= 0 ? 'text-success' : 'text-danger'">
-                  ${{ remainingAmount.toFixed(2) }}
-                </span>
+              <div v-if="selectedProductsTotal < (selectedPackage?.price || 0)" class="summary-row error-row">
+                <span class="summary-label text-danger">Недостаточно:</span>
+                <span class="summary-value text-danger">${{ ((selectedPackage?.price || 0) - selectedProductsTotal).toFixed(2) }}</span>
+              </div>
+              <div v-else class="summary-row success-row">
+                <span class="summary-label text-success">✓ Минимум выполнен</span>
+                <span class="summary-value text-success">+${{ (selectedProductsTotal - (selectedPackage?.price || 0)).toFixed(2) }}</span>
               </div>
             </div>
           </div>
@@ -466,7 +485,7 @@
               v-if="currentStep === 5"
               type="submit"
               class="btn btn-success"
-              :disabled="loading || selectedProducts.length === 0 || remainingAmount < 0"
+              :disabled="loading || selectedProducts.length === 0 || selectedProductsTotal < (selectedPackage?.price || 0)"
             >
               <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
               <i v-else class="bi bi-check-circle me-2"></i>
@@ -504,7 +523,7 @@ const stepSubtitles = [
   'Заполните паспортную информацию',
   'Укажите банковские данные',
   'Настройте ваш кабинет',
-  'Выберите товары на сумму пакета'
+  'Выберите товары минимум на сумму пакета (можно больше)'
 ]
 
 const currentStep = ref(1)
@@ -567,7 +586,7 @@ const selectedProductsTotal = computed(() => {
   return selectedProducts.value.reduce((sum, item) => {
     const product = products.value.find(p => p.id === item.id)
     if (!product) return sum
-    const price = typeof product.price === 'string' ? parseFloat(product.price) : product.price
+    const price = getProductPrice(product)
     return sum + (price || 0) * (item.quantity || 1)
   }, 0)
 })
@@ -577,6 +596,8 @@ const remainingAmount = computed(() => {
   const packagePrice = typeof selectedPackage.value.price === 'string' 
     ? parseFloat(selectedPackage.value.price) 
     : selectedPackage.value.price
+  // Positive value means user needs to add more products
+  // Negative value means user exceeded minimum (which is allowed)
   return packagePrice - selectedProductsTotal.value
 })
 
@@ -594,8 +615,8 @@ const canAddProduct = (productId) => {
   const product = products.value.find(p => p.id === productId)
   if (!product) return false
   
-  const productPrice = typeof product.price === 'string' ? parseFloat(product.price) : product.price
-  return (selectedProductsTotal.value + productPrice) <= (selectedPackage.value.price || 0)
+  // Always allow adding products (no upper limit)
+  return true
 }
 
 const toggleProduct = (productId) => {
@@ -613,15 +634,12 @@ const increaseQuantity = (productId) => {
   const product = products.value.find(p => p.id === productId)
   if (!product) return
   
-  const productPrice = typeof product.price === 'string' ? parseFloat(product.price) : product.price
-  
-  if ((selectedProductsTotal.value + productPrice) <= (selectedPackage.value?.price || 0)) {
-    const index = selectedProducts.value.findIndex(item => item.id === productId)
-    if (index > -1) {
-      selectedProducts.value[index].quantity++
-    } else {
-      selectedProducts.value.push({ id: productId, quantity: 1 })
-    }
+  // Always allow increasing quantity (no upper limit)
+  const index = selectedProducts.value.findIndex(item => item.id === productId)
+  if (index > -1) {
+    selectedProducts.value[index].quantity++
+  } else {
+    selectedProducts.value.push({ id: productId, quantity: 1 })
   }
 }
 
@@ -691,7 +709,13 @@ const fetchBranches = async () => {
 const fetchProducts = async () => {
   loadingProducts.value = true
   try {
-    const response = await fetch(`${BACKEND_API_URL}/api/admin/products/`, {
+    // Build URL with paket filter if selected
+    let url = `${BACKEND_API_URL}/api/admin/products/`
+    if (formData.value.cabinet.paket_id) {
+      url += `?paket_id=${formData.value.cabinet.paket_id}`
+    }
+
+    const response = await fetch(url, {
       headers: {
         'accept': 'application/json'
       }
@@ -699,10 +723,7 @@ const fetchProducts = async () => {
     
     if (response.ok) {
       const data = await response.json()
-      products.value = data.map(product => ({
-        ...product,
-        price: typeof product.price === 'string' ? parseFloat(product.price) : product.price
-      }))
+      products.value = data
     }
   } catch (err) {
     console.error('Error fetching products:', err)
@@ -711,11 +732,26 @@ const fetchProducts = async () => {
   }
 }
 
+// Get product price based on selected paket
+const getProductPrice = (product) => {
+  // If paket is selected and product has paket_prices
+  if (formData.value.cabinet.paket_id && product.paket_prices && product.paket_prices.length > 0) {
+    const paketPrice = product.paket_prices.find(pp => pp.paket_id === formData.value.cabinet.paket_id)
+    if (paketPrice) {
+      return typeof paketPrice.price === 'string' ? parseFloat(paketPrice.price) : paketPrice.price
+    }
+  }
+  // Otherwise use cost_price
+  return typeof product.cost_price === 'string' ? parseFloat(product.cost_price) : product.cost_price
+}
+
 // Handle package change
 const onPackageChange = () => {
   const paket = pakets.value.find(p => p.id === formData.value.cabinet.paket_id)
   selectedPackage.value = paket
   selectedProducts.value = [] // Reset selected products when package changes
+  // Fetch products with new paket filter
+  fetchProducts()
 }
 
 // Sponsor search
@@ -873,8 +909,8 @@ const validateCurrentStep = () => {
       error.value = 'Пожалуйста, выберите хотя бы один товар'
       return false
     }
-    if (remainingAmount.value < 0) {
-      error.value = 'Сумма товаров превышает стоимость пакета'
+    if (selectedProductsTotal.value < (selectedPackage.value?.price || 0)) {
+      error.value = `Сумма товаров должна быть не меньше ${selectedPackage.value?.price || 0}$`
       return false
     }
   }
@@ -911,7 +947,7 @@ const handleSubmit = async () => {
       return {
         product_id: item.id,
         quantity: item.quantity,
-        unit_price: product ? product.price : 0
+        unit_price: product ? getProductPrice(product) : 0
       }
     })
 
@@ -1341,6 +1377,19 @@ textarea.form-control {
 }
 
 /* Product Selection Styles */
+.package-selector-section {
+  background: #ffffff;
+  padding: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+}
+
+.package-selector-section .form-label {
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
 .package-info-header {
   background: #f8f9fa;
   padding: 1rem;
