@@ -26,12 +26,6 @@
             @click="openProductModal(product)"
           >
             <div class="product-image">
-              <div class="product-badge" v-if="product.stock < 20">
-                <i class="bi bi-exclamation-circle"></i> Мало
-              </div>
-              <div class="product-badge success" v-else-if="product.stock > 80">
-                <i class="bi bi-check-circle"></i> В наличии
-              </div>
               <div class="placeholder-image">
                 <i class="bi bi-box-seam"></i>
               </div>
@@ -40,13 +34,6 @@
             <div class="product-body">
               <h3 class="product-name">{{ product.name }}</h3>
               <p class="product-sku">{{ product.sku }}</p>
-              
-              <div class="product-footer">
-                <div class="product-price">${{ product.price }}</div>
-                <div class="product-stock">
-                  <i class="bi bi-box"></i> {{ product.stock }} шт
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -83,13 +70,6 @@
               <div class="modal-description">
                 <h3 class="section-title">Описание</h3>
                 <p>{{ selectedProduct.description }}</p>
-              </div>
-
-              <div class="modal-details">
-                <div class="detail-row">
-                  <span class="detail-label">Цена:</span>
-                  <span class="detail-value price">${{ selectedProduct.price }}</span>
-                </div>
               </div>
             </div>
           </div>
