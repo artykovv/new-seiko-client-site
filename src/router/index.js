@@ -29,14 +29,6 @@ const routes = [
         component: () => import('../views/Home.vue')
     },
     {
-        path: '/cabinets',
-        name: 'cabinets',
-        meta: {
-            title: 'Кабинеты'
-        },
-        component: () => import('../views/Cabinets.vue')
-    },
-    {
         path: '/structure',
         name: 'structure',
         meta: {

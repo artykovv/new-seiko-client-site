@@ -22,17 +22,6 @@
           </router-link>
 
           <router-link 
-            to="/cabinets" 
-            class="menu-item"
-            :class="{ 'active': $route.path === '/cabinets' }"
-            @click="$emit('close')"
-          >
-            <i class="bi bi-grid"></i>
-            <span>Кабинеты</span>
-            <i class="bi bi-chevron-right"></i>
-          </router-link>
-
-          <router-link 
             to="/structure" 
             class="menu-item"
             :class="{ 'active': $route.path === '/structure' }"
