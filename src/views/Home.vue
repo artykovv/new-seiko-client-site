@@ -24,17 +24,57 @@
             </div>
           </div>
 
-          <!-- Stats Cards -->
+          <!-- Turnover Section -->
           <div class="stats-section">
-            <h2 class="section-title">Статистика</h2>
-            <div class="stats-grid">
-              <div class="stat-card">
-                <div class="stat-icon">
-                  <i class="bi bi-grid"></i>
+            <h2 class="section-title">Товарооборот</h2>
+            <div class="turnover-grid">
+              <!-- Left Turnover -->
+              <div class="turnover-column">
+                <h3 class="turnover-column-title">Левая</h3>
+                
+                <div class="turnover-card">
+                  <div class="turnover-icon left">
+                    <i class="bi bi-arrow-left-circle"></i>
+                  </div>
+                  <div class="turnover-info">
+                    <div class="turnover-value">${{ cabinetData.left_turnover_all_time }}</div>
+                    <div class="turnover-label">За все время</div>
+                  </div>
                 </div>
-                <div class="stat-info">
-                  <div class="stat-value">{{ cabinetsCount }}</div>
-                  <div class="stat-label">Кабинетов</div>
+
+                <div class="turnover-card">
+                  <div class="turnover-icon left">
+                    <i class="bi bi-calendar-month"></i>
+                  </div>
+                  <div class="turnover-info">
+                    <div class="turnover-value">${{ cabinetData.left_turnover_current_month }}</div>
+                    <div class="turnover-label">Текущий месяц</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right Turnover -->
+              <div class="turnover-column right-column">
+                <h3 class="turnover-column-title">Правая</h3>
+                
+                <div class="turnover-card">
+                  <div class="turnover-info">
+                    <div class="turnover-value">${{ cabinetData.right_turnover_all_time }}</div>
+                    <div class="turnover-label">За все время</div>
+                  </div>
+                  <div class="turnover-icon right">
+                    <i class="bi bi-arrow-right-circle"></i>
+                  </div>
+                </div>
+
+                <div class="turnover-card">
+                  <div class="turnover-info">
+                    <div class="turnover-value">${{ cabinetData.right_turnover_current_month }}</div>
+                    <div class="turnover-label">Текущий месяц</div>
+                  </div>
+                  <div class="turnover-icon right">
+                    <i class="bi bi-calendar-month"></i>
+                  </div>
                 </div>
               </div>
             </div>
@@ -155,7 +195,12 @@ const userData = ref({
   patronymic: '',
   email: ''
 })
-const cabinetsCount = ref(0)
+const cabinetData = ref({
+  left_turnover_all_time: '0',
+  right_turnover_all_time: '0',
+  left_turnover_current_month: '0',
+  right_turnover_current_month: '0'
+})
 const selectedMonth = ref('')
 const bonusesSummary = ref({
   month: '',
@@ -218,12 +263,13 @@ const fetchUserData = async () => {
   }
 }
 
-const fetchCabinetsCount = async () => {
+const fetchCabinetData = async () => {
   try {
     const token = localStorage.getItem('access_token')
     if (!token) return
 
-    const response = await fetch(
+    // First get cabinet ID
+    const cabinetsResponse = await fetch(
       `${BACKEND_API_URL}/api/cabinets/?page=1&page_size=1`,
       {
         headers: {
@@ -233,12 +279,35 @@ const fetchCabinetsCount = async () => {
       }
     )
 
-    if (response.ok) {
-      const data = await response.json()
-      cabinetsCount.value = data.total || 0
+    if (cabinetsResponse.ok) {
+      const cabinetsData = await cabinetsResponse.json()
+      if (cabinetsData.cabinets && cabinetsData.cabinets.length > 0) {
+        const cabinetId = cabinetsData.cabinets[0].id
+        
+        // Get cabinet details
+        const cabinetResponse = await fetch(
+          `${BACKEND_API_URL}/api/cabinets/${cabinetId}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'accept': 'application/json'
+            }
+          }
+        )
+
+        if (cabinetResponse.ok) {
+          const data = await cabinetResponse.json()
+          cabinetData.value = {
+            left_turnover_all_time: data.left_turnover_all_time || '0',
+            right_turnover_all_time: data.right_turnover_all_time || '0',
+            left_turnover_current_month: data.left_turnover_current_month || '0',
+            right_turnover_current_month: data.right_turnover_current_month || '0'
+          }
+        }
+      }
     }
   } catch (err) {
-    console.error('Error fetching cabinets count:', err)
+    console.error('Error fetching cabinet data:', err)
   }
 }
 
@@ -311,7 +380,7 @@ onMounted(async () => {
   
   await Promise.all([
     fetchUserData(),
-    fetchCabinetsCount(),
+    fetchCabinetData(),
     fetchBonusesSummary()
   ])
   
@@ -403,7 +472,7 @@ onMounted(async () => {
   margin: 0;
 }
 
-/* Stats Section */
+/* Turnover Section */
 .stats-section {
   margin-bottom: 2rem;
   animation: fadeIn 0.6s ease-out 0.1s both;
@@ -417,55 +486,80 @@ onMounted(async () => {
   text-align: center;
 }
 
-.stats-grid {
+.turnover-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.turnover-column {
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
 }
 
-.stat-card {
+.turnover-column-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.turnover-card {
   background: white;
   border-radius: 20px;
-  padding: 2rem;
+  padding: 1.5rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1rem;
   transition: all 0.3s ease;
 }
 
-.stat-card:hover {
+.turnover-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
-.stat-icon {
-  width: 60px;
-  height: 60px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16px;
+.turnover-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
+  font-size: 24px;
   color: white;
   flex-shrink: 0;
 }
 
-.stat-info {
+.turnover-icon.left {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.turnover-icon.right {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+.turnover-info {
   flex: 1;
 }
 
-.stat-value {
-  font-size: 36px;
+.right-column .turnover-info {
+  text-align: right;
+}
+
+.turnover-value {
+  font-size: 24px;
   font-weight: 700;
   color: #1a1a1a;
   line-height: 1;
   margin-bottom: 0.5rem;
 }
 
-.stat-label {
-  font-size: 14px;
+.turnover-label {
+  font-size: 13px;
   color: #6c757d;
   font-weight: 500;
 }
@@ -636,22 +730,32 @@ onMounted(async () => {
     font-size: 18px;
   }
 
-  .stat-card {
-    padding: 1.5rem;
+  .turnover-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
   }
 
-  .stat-icon {
-    width: 50px;
-    height: 50px;
-    font-size: 24px;
+  .turnover-column-title {
+    font-size: 14px;
+    margin-bottom: 0.25rem;
   }
 
-  .stat-value {
-    font-size: 28px;
+  .turnover-card {
+    padding: 0.75rem;
   }
 
-  .stat-label {
-    font-size: 13px;
+  .turnover-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+
+  .turnover-value {
+    font-size: 16px;
+  }
+
+  .turnover-label {
+    font-size: 11px;
   }
 
   .month-selector-card {

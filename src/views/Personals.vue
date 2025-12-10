@@ -9,26 +9,9 @@
           <p class="page-subtitle">Личные кабинеты участников</p>
         </div>
 
-        <!-- Cabinet Selector -->
-        <div class="selector-section">
-          <label class="selector-label">Выберите кабинет</label>
-          <select 
-            v-model="selectedCabinetId" 
-            @change="onCabinetChange"
-            class="cabinet-select"
-          >
-            <option :value="null">Выберите кабинет...</option>
-            <option 
-              v-for="cabinet in cabinets" 
-              :key="cabinet.id" 
-              :value="cabinet.id"
-            >
-              {{ cabinet.personal_number }} - №{{ cabinet.sequence_number }}
-            </option>
-          </select>
-
-          <!-- Registered Filter -->
-          <div v-if="selectedCabinetId" class="filter-toggle">
+        <!-- Filter Section -->
+        <div class="selector-section" v-if="selectedCabinetId">
+          <div class="filter-toggle">
             <label class="toggle-label">
               <input 
                 type="checkbox" 
@@ -165,7 +148,7 @@ const fetchCabinets = async () => {
     }
 
     const response = await fetch(
-      `${BACKEND_API_URL}/api/cabinets/?page=1&page_size=100`,
+      `${BACKEND_API_URL}/api/cabinets/?page=1&page_size=1`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -234,12 +217,6 @@ const loadPersonalCabinets = async (pageNum = 1) => {
   }
 }
 
-const onCabinetChange = () => {
-  if (selectedCabinetId.value) {
-    page.value = 1
-    loadPersonalCabinets(1)
-  }
-}
 
 const changePage = (newPage) => {
   if (newPage >= 1 && newPage <= totalPages.value) {

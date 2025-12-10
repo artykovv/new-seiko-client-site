@@ -9,25 +9,6 @@
           <p class="page-subtitle">История начислений бонусов</p>
         </div>
 
-        <!-- Cabinet Selector -->
-        <div class="selector-section">
-          <label class="selector-label">Выберите кабинет</label>
-          <select 
-            v-model="selectedCabinetId" 
-            @change="onCabinetChange"
-            class="cabinet-select"
-          >
-            <option :value="null">Все кабинеты</option>
-            <option 
-              v-for="cabinet in cabinets" 
-              :key="cabinet.id" 
-              :value="cabinet.id"
-            >
-              {{ cabinet.personal_number }} - №{{ cabinet.sequence_number }}
-            </option>
-          </select>
-        </div>
-
         <!-- Bonus Type Tabs -->
         <div class="tabs-section">
           <div class="tabs-nav">
@@ -158,7 +139,7 @@ const fetchCabinets = async () => {
     }
 
     const response = await fetch(
-      `${BACKEND_API_URL}/api/cabinets/?page=1&page_size=100`,
+      `${BACKEND_API_URL}/api/cabinets/?page=1&page_size=1`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -170,6 +151,10 @@ const fetchCabinets = async () => {
     if (response.ok) {
       const data = await response.json()
       cabinets.value = data.cabinets || []
+      // Автоматически выбрать первый кабинет
+      if (cabinets.value.length > 0) {
+        selectedCabinetId.value = cabinets.value[0].id
+      }
     }
   } catch (err) {
     console.error('Error fetching cabinets:', err)
@@ -227,10 +212,6 @@ const fetchBonuses = async () => {
   }
 }
 
-const onCabinetChange = () => {
-  currentPage.value = 1
-  fetchBonuses()
-}
 
 const switchTab = (tabType) => {
   if (activeTab.value !== tabType) {

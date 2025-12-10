@@ -674,7 +674,7 @@ const generateCabinetCode = () => {
 // Fetch pakets
 const fetchPakets = async () => {
   try {
-    const response = await fetch(`${BACKEND_API_URL}/api/admin/pakets/`, {
+    const response = await fetch(`${BACKEND_API_URL}/api/pakets/`, {
       headers: {
         'accept': 'application/json'
       }
@@ -691,7 +691,7 @@ const fetchPakets = async () => {
 // Fetch branches
 const fetchBranches = async () => {
   try {
-    const response = await fetch(`${BACKEND_API_URL}/api/admin/branches/`, {
+    const response = await fetch(`${BACKEND_API_URL}/api/branches/`, {
       headers: {
         'accept': 'application/json'
       }
@@ -710,7 +710,7 @@ const fetchProducts = async () => {
   loadingProducts.value = true
   try {
     // Build URL with paket filter if selected
-    let url = `${BACKEND_API_URL}/api/admin/products/`
+    let url = `${BACKEND_API_URL}/api/products/`
     if (formData.value.cabinet.paket_id) {
       url += `?paket_id=${formData.value.cabinet.paket_id}`
     }
@@ -783,7 +783,7 @@ const searchSponsors = async () => {
       page_size: '20'
     })
     
-    const response = await fetch(`${BACKEND_API_URL}/api/admin/cabinets/?${params.toString()}`, {
+    const response = await fetch(`${BACKEND_API_URL}/api/cabinets/search/?${params.toString()}`, {
       headers: {
         'accept': 'application/json'
       }
@@ -810,15 +810,18 @@ const selectSponsor = (cabinet) => {
 }
 
 const formatCabinetName = (cabinet) => {
-  if (!cabinet || !cabinet.participant) return '-'
+  if (!cabinet) return '-'
+  
+  // Build full name from participant fields
   const parts = []
-  if (cabinet.participant.lastname) parts.push(cabinet.participant.lastname)
-  if (cabinet.participant.name) parts.push(cabinet.participant.name)
-  if (cabinet.participant.patronymic) parts.push(cabinet.participant.patronymic)
-  const name = parts.length > 0 ? parts.join(' ') : cabinet.participant.email || '-'
+  if (cabinet.participant_lastname) parts.push(cabinet.participant_lastname)
+  if (cabinet.participant_name) parts.push(cabinet.participant_name)
+  if (cabinet.participant_patronymic) parts.push(cabinet.participant_patronymic)
+  
+  const name = parts.length > 0 ? parts.join(' ') : '-'
   const personalNumber = cabinet.personal_number || '-'
-  const sequenceNumber = cabinet.sequence_number || '-'
-  return `${name} (${personalNumber}) - Кабинет №${sequenceNumber}`
+  
+  return `${name} (${personalNumber})`
 }
 
 const previousStep = () => {

@@ -9,25 +9,6 @@
           <p class="page-subtitle">История заказов по кабинетам</p>
         </div>
 
-        <!-- Cabinet Selector -->
-        <div class="selector-section">
-          <label class="selector-label">Выберите кабинет</label>
-          <select 
-            v-model="selectedCabinetId" 
-            @change="onCabinetChange"
-            class="cabinet-select"
-          >
-            <option :value="null">Выберите кабинет...</option>
-            <option 
-              v-for="cabinet in cabinets" 
-              :key="cabinet.id" 
-              :value="cabinet.id"
-            >
-              {{ cabinet.personal_number }} - №{{ cabinet.sequence_number }}
-            </option>
-          </select>
-        </div>
-
         <!-- Loading State -->
         <div v-if="loadingOrders" class="loading-state">
           <div class="spinner-border text-primary" role="status">
@@ -36,11 +17,6 @@
           <p>Загрузка заказов...</p>
         </div>
 
-        <!-- Empty State -->
-        <div v-else-if="!selectedCabinetId" class="empty-state">
-          <i class="bi bi-cart3"></i>
-          <p>Выберите кабинет для просмотра заказов</p>
-        </div>
 
         <!-- No Orders -->
         <div v-else-if="orders.length === 0" class="empty-state">
@@ -65,10 +41,10 @@
               </div>
 
               <div class="order-body">
-                <div class="order-info-row">
+                <!-- <div class="order-info-row">
                   <span class="info-label">Кабинет:</span>
                   <span class="info-value">{{ order.cabinet.personal_number }}</span>
-                </div>
+                </div> -->
                 <div class="order-info-row">
                   <span class="info-label">Участник:</span>
                   <span class="info-value">{{ formatParticipantName(order.cabinet.participant) }}</span>
@@ -121,10 +97,10 @@
               <!-- Order Info -->
               <div class="detail-section">
                 <h3 class="section-title">Информация о заказе</h3>
-                <div class="detail-row">
+                <!-- <div class="detail-row">
                   <span class="detail-label">Кабинет:</span>
                   <span class="detail-value">{{ selectedOrder.cabinet.personal_number }}</span>
-                </div>
+                </div> -->
                 <div class="detail-row">
                   <span class="detail-label">Участник:</span>
                   <span class="detail-value">{{ formatParticipantName(selectedOrder.cabinet.participant) }}</span>
@@ -227,7 +203,7 @@ const fetchCabinets = async () => {
     }
 
     const response = await fetch(
-      `${BACKEND_API_URL}/api/cabinets/?page=1&page_size=100`,
+      `${BACKEND_API_URL}/api/cabinets/?page=1&page_size=1`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -239,6 +215,11 @@ const fetchCabinets = async () => {
     if (response.ok) {
       const data = await response.json()
       cabinets.value = data.cabinets || []
+      // Автоматически выбрать первый кабинет и загрузить заказы
+      if (cabinets.value.length > 0) {
+        selectedCabinetId.value = cabinets.value[0].id
+        await fetchOrders(selectedCabinetId.value)
+      }
     }
   } catch (err) {
     console.error('Error fetching cabinets:', err)
@@ -260,7 +241,7 @@ const fetchOrders = async (cabinetId) => {
     }
 
     const response = await fetch(
-      `${BACKEND_API_URL}/api/admin/orders/?cabinet_id=${cabinetId}`,
+      `${BACKEND_API_URL}/api/orders/?cabinet_id=${cabinetId}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -291,7 +272,7 @@ const showOrderDetails = async (orderId) => {
     }
 
     const response = await fetch(
-      `${BACKEND_API_URL}/api/admin/orders/${orderId}`,
+      `${BACKEND_API_URL}/api/orders/${orderId}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -314,13 +295,6 @@ const closeOrderModal = () => {
   document.body.style.overflow = ''
 }
 
-const onCabinetChange = () => {
-  if (selectedCabinetId.value) {
-    fetchOrders(selectedCabinetId.value)
-  } else {
-    orders.value = []
-  }
-}
 
 const formatParticipantName = (participant) => {
   if (!participant) return '-'

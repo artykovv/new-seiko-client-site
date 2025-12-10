@@ -6,25 +6,15 @@
       <main class="structure-main">
         <div class="structure-header">
           <h1 class="page-title">Организация</h1>
-        </div>
-
-        <!-- Cabinet Selector -->
-        <div class="selector-section">
-          <label class="selector-label">Выберите кабинет</label>
-          <select 
-            v-model="selectedCabinetId" 
-            @change="onCabinetChange"
-            class="cabinet-select"
+          <!-- Back Button -->
+          <button 
+            v-if="canGoBack" 
+            @click="goBack"
+            class="btn-back"
           >
-            <option :value="null">Выберите кабинет...</option>
-            <option 
-              v-for="cabinet in cabinets" 
-              :key="cabinet.id" 
-              :value="cabinet.id"
-            >
-              {{ cabinet.personal_number }} - №{{ cabinet.sequence_number }}
-            </option>
-          </select>
+            <i class="bi bi-arrow-left"></i>
+            <span>Назад</span>
+          </button>
         </div>
 
         <!-- Loading State -->
@@ -35,382 +25,164 @@
           <p>Загрузка структуры...</p>
         </div>
 
-        <!-- Structure Tree -->
-        <div v-else-if="structureData && selectedCabinetId" class="card body genealogy-body genealogy-scroll">
-          <div class="genealogy-tree">
-            <ul class="mt-5">
-              <li>
-                <a :style="{ background: `linear-gradient(${structureData.paket_color})` }">
-                    <div class="member-view-box">
-                      <div class="member-footer">
-                        <div class="name-container" @click="loadStructure(structureData.cabinet_id)" style="cursor: pointer;">
-                          <div class="name">{{ structureData.participant_name }}</div>
-                          <div class="name">{{ structureData.participant_lastname }}</div>
-                        </div>
-                        <div class="d-flex flex-column">
-                          <button 
-                            class="name btn"
-                            @click="showCabinetDetails(structureData.cabinet_id)"
-                            @contextmenu.prevent="loadStructure(structureData.cabinet_id)"
-                          >
-                            {{ structureData.cabinet_personal_number }}
-                          </button>
-                          <span class="cabinet-number">№{{ structureData.cabinet_sequence_number }}</span>
-                        </div>
-                      </div>
-                    </div>
-                </a>
-
-                <ul class="active">
-                  <!-- Left Child -->
-                  <li v-if="structureData.left_child">
-                    <a :style="{ background: `linear-gradient(${structureData.left_child.paket_color})` }">
-                      <div class="member-view-box">
-                        <div class="member-footer">
-                          <div class="name-container" @click="loadStructure(structureData.left_child.cabinet_id)" style="cursor: pointer;">
-                            <div class="name">{{ structureData.left_child.participant_name }}</div>
-                            <div class="name">{{ structureData.left_child.participant_lastname }}</div>
-                          </div>
-                          <div class="d-flex flex-column">
-                            <button 
-                              class="name btn" 
-                              @click="showCabinetDetails(structureData.left_child.cabinet_id)"
-                              @contextmenu.prevent="loadStructure(structureData.left_child.cabinet_id)"
-                            >
-                              {{ structureData.left_child.cabinet_personal_number }}
-                            </button>
-                            <span class="cabinet-number">№{{ structureData.left_child.cabinet_sequence_number }}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </a>
-
-                    <ul v-if="structureData.left_child.left_child || structureData.left_child.right_child">
-                      <!-- Left-Left Child -->
-                      <li v-if="structureData.left_child.left_child">
-                        <a :style="{ background: `linear-gradient(${structureData.left_child.left_child.paket_color})` }">
-                          <div class="member-view-box">
-                            <div class="member-footer">
-                              <div class="name-container" @click="loadStructure(structureData.left_child.left_child.cabinet_id)" style="cursor: pointer;">
-                                <div class="name">{{ structureData.left_child.left_child.participant_name }}</div>
-                                <div class="name">{{ structureData.left_child.left_child.participant_lastname }}</div>
-                              </div>
-                              <div class="d-flex flex-column">
-                                <button 
-                                  class="name btn"
-                                  @click="showCabinetDetails(structureData.left_child.left_child.cabinet_id)"
-                                  @contextmenu.prevent="loadStructure(structureData.left_child.left_child.cabinet_id)"
-                                >
-                                  {{ structureData.left_child.left_child.cabinet_personal_number }}
-                                </button>
-                                <span class="cabinet-number">№{{ structureData.left_child.left_child.cabinet_sequence_number }}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </a>
-
-                        <!-- Third Level: Left-Left Children -->
-                        <ul v-if="structureData.left_child.left_child.left_child || structureData.left_child.left_child.right_child">
-                          <li v-if="structureData.left_child.left_child.left_child">
-                            <a :style="{ background: `linear-gradient(${structureData.left_child.left_child.left_child.paket_color})` }">
-                              <div class="member-view-box">
-                                <div class="member-footer">
-                                  <div class="name-container" @click="loadStructure(structureData.left_child.left_child.left_child.cabinet_id)" style="cursor: pointer;">
-                                    <div class="name">{{ structureData.left_child.left_child.left_child.participant_name }}</div>
-                                    <div class="name">{{ structureData.left_child.left_child.left_child.participant_lastname }}</div>
-                                  </div>
-                                  <div class="d-flex flex-column">
-                                    <button 
-                                      class="name btn"
-                                      @click="showCabinetDetails(structureData.left_child.left_child.left_child.cabinet_id)"
-                                      @contextmenu.prevent="loadStructure(structureData.left_child.left_child.left_child.cabinet_id)"
-                                    >
-                                      {{ structureData.left_child.left_child.left_child.cabinet_personal_number }}
-                                    </button>
-                                    <span class="cabinet-number">№{{ structureData.left_child.left_child.left_child.cabinet_sequence_number }}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </a>
-                          </li>
-                          <li v-if="structureData.left_child.left_child.right_child">
-                            <a :style="{ background: `linear-gradient(${structureData.left_child.left_child.right_child.paket_color})` }">
-                              <div class="member-view-box">
-                                <div class="member-footer">
-                                  <div class="name-container" @click="loadStructure(structureData.left_child.left_child.right_child.cabinet_id)" style="cursor: pointer;">
-                                    <div class="name">{{ structureData.left_child.left_child.right_child.participant_name }}</div>
-                                    <div class="name">{{ structureData.left_child.left_child.right_child.participant_lastname }}</div>
-                                  </div>
-                                  <div class="d-flex flex-column">
-                                    <button 
-                                      class="name btn"
-                                      @click="showCabinetDetails(structureData.left_child.left_child.right_child.cabinet_id)"
-                                      @contextmenu.prevent="loadStructure(structureData.left_child.left_child.right_child.cabinet_id)"
-                                    >
-                                      {{ structureData.left_child.left_child.right_child.cabinet_personal_number }}
-                                    </button>
-                                    <span class="cabinet-number">№{{ structureData.left_child.left_child.right_child.cabinet_sequence_number }}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </a>
-                          </li>
-                        </ul>
-                      </li>
-
-                      <!-- Left-Right Child -->
-                      <li v-if="structureData.left_child.right_child">
-                        <a :style="{ background: `linear-gradient(${structureData.left_child.right_child.paket_color})` }">
-                          <div class="member-view-box">
-                            <div class="member-footer">
-                              <div class="name-container" @click="loadStructure(structureData.left_child.right_child.cabinet_id)" style="cursor: pointer;">
-                                <div class="name">{{ structureData.left_child.right_child.participant_name }}</div>
-                                <div class="name">{{ structureData.left_child.right_child.participant_lastname }}</div>
-                              </div>
-                              <div class="d-flex flex-column">
-                                <button 
-                                  class="name btn"
-                                  @click="showCabinetDetails(structureData.left_child.right_child.cabinet_id)"
-                                  @contextmenu.prevent="loadStructure(structureData.left_child.right_child.cabinet_id)"
-                                >
-                                  {{ structureData.left_child.right_child.cabinet_personal_number }}
-                                </button>
-                                <span class="cabinet-number">№{{ structureData.left_child.right_child.cabinet_sequence_number }}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </a>
-
-                        <!-- Third Level: Left-Right Children -->
-                        <ul v-if="structureData.left_child.right_child.left_child || structureData.left_child.right_child.right_child">
-                          <li v-if="structureData.left_child.right_child.left_child">
-                            <a :style="{ background: `linear-gradient(${structureData.left_child.right_child.left_child.paket_color})` }">
-                              <div class="member-view-box">
-                                <div class="member-footer">
-                                  <div class="name-container" @click="loadStructure(structureData.left_child.right_child.left_child.cabinet_id)" style="cursor: pointer;">
-                                    <div class="name">{{ structureData.left_child.right_child.left_child.participant_name }}</div>
-                                    <div class="name">{{ structureData.left_child.right_child.left_child.participant_lastname }}</div>
-                                  </div>
-                                  <div class="d-flex flex-column">
-                                    <button 
-                                      class="name btn"
-                                      @click="showCabinetDetails(structureData.left_child.right_child.left_child.cabinet_id)"
-                                      @contextmenu.prevent="loadStructure(structureData.left_child.right_child.left_child.cabinet_id)"
-                                    >
-                                      {{ structureData.left_child.right_child.left_child.cabinet_personal_number }}
-                                    </button>
-                                    <span class="cabinet-number">№{{ structureData.left_child.right_child.left_child.cabinet_sequence_number }}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </a>
-                          </li>
-                          <li v-if="structureData.left_child.right_child.right_child">
-                            <a :style="{ background: `linear-gradient(${structureData.left_child.right_child.right_child.paket_color})` }">
-                              <div class="member-view-box">
-                                <div class="member-footer">
-                                  <div class="name-container" @click="loadStructure(structureData.left_child.right_child.right_child.cabinet_id)" style="cursor: pointer;">
-                                    <div class="name">{{ structureData.left_child.right_child.right_child.participant_name }}</div>
-                                    <div class="name">{{ structureData.left_child.right_child.right_child.participant_lastname }}</div>
-                                  </div>
-                                  <div class="d-flex flex-column">
-                                    <button 
-                                      class="name btn"
-                                      @click="showCabinetDetails(structureData.left_child.right_child.right_child.cabinet_id)"
-                                      @contextmenu.prevent="loadStructure(structureData.left_child.right_child.right_child.cabinet_id)"
-                                    >
-                                      {{ structureData.left_child.right_child.right_child.cabinet_personal_number }}
-                                    </button>
-                                    <span class="cabinet-number">№{{ structureData.left_child.right_child.right_child.cabinet_sequence_number }}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </a>
-                          </li>
-                        </ul>
-                      </li>
-                    </ul>
-                  </li>
-
-                  <!-- Right Child -->
-                  <li v-if="structureData.right_child">
-                    <a :style="{ background: `linear-gradient(${structureData.right_child.paket_color})` }">
-                      <div class="member-view-box">
-                        <div class="member-footer">
-                          <div class="name-container" @click="loadStructure(structureData.right_child.cabinet_id)" style="cursor: pointer;">
-                            <div class="name">{{ structureData.right_child.participant_name }}</div>
-                            <div class="name">{{ structureData.right_child.participant_lastname }}</div>
-                          </div>
-                          <div class="d-flex flex-column">
-                            <button 
-                              class="name btn"
-                              @click="showCabinetDetails(structureData.right_child.cabinet_id)"
-                              @contextmenu.prevent="loadStructure(structureData.right_child.cabinet_id)"
-                            >
-                              {{ structureData.right_child.cabinet_personal_number }}
-                            </button>
-                            <span class="cabinet-number">№{{ structureData.right_child.cabinet_sequence_number }}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </a>
-
-                    <ul v-if="structureData.right_child.left_child || structureData.right_child.right_child">
-                      <!-- Right-Left Child -->
-                      <li v-if="structureData.right_child.left_child">
-                        <a :style="{ background: `linear-gradient(${structureData.right_child.left_child.paket_color})` }">
-                          <div class="member-view-box">
-                            <div class="member-footer">
-                              <div class="name-container" @click="loadStructure(structureData.right_child.left_child.cabinet_id)" style="cursor: pointer;">
-                                <div class="name">{{ structureData.right_child.left_child.participant_name }}</div>
-                                <div class="name">{{ structureData.right_child.left_child.participant_lastname }}</div>
-                              </div>
-                              <div class="d-flex flex-column">
-                                <button 
-                                  class="name btn"
-                                  @click="showCabinetDetails(structureData.right_child.left_child.cabinet_id)"
-                                  @contextmenu.prevent="loadStructure(structureData.right_child.left_child.cabinet_id)"
-                                >
-                                  {{ structureData.right_child.left_child.cabinet_personal_number }}
-                                </button>
-                                <span class="cabinet-number">№{{ structureData.right_child.left_child.cabinet_sequence_number }}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </a>
-
-                        <!-- Third Level: Right-Left Children -->
-                        <ul v-if="structureData.right_child.left_child.left_child || structureData.right_child.left_child.right_child">
-                          <li v-if="structureData.right_child.left_child.left_child">
-                            <a :style="{ background: `linear-gradient(${structureData.right_child.left_child.left_child.paket_color})` }">
-                              <div class="member-view-box">
-                                <div class="member-footer">
-                                  <div class="name-container" @click="loadStructure(structureData.right_child.left_child.left_child.cabinet_id)" style="cursor: pointer;">
-                                    <div class="name">{{ structureData.right_child.left_child.left_child.participant_name }}</div>
-                                    <div class="name">{{ structureData.right_child.left_child.left_child.participant_lastname }}</div>
-                                  </div>
-                                  <div class="d-flex flex-column">
-                                    <button 
-                                      class="name btn"
-                                      @click="showCabinetDetails(structureData.right_child.left_child.left_child.cabinet_id)"
-                                      @contextmenu.prevent="loadStructure(structureData.right_child.left_child.left_child.cabinet_id)"
-                                    >
-                                      {{ structureData.right_child.left_child.left_child.cabinet_personal_number }}
-                                    </button>
-                                    <span class="cabinet-number">№{{ structureData.right_child.left_child.left_child.cabinet_sequence_number }}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </a>
-                          </li>
-                          <li v-if="structureData.right_child.left_child.right_child">
-                            <a :style="{ background: `linear-gradient(${structureData.right_child.left_child.right_child.paket_color})` }">
-                              <div class="member-view-box">
-                                <div class="member-footer">
-                                  <div class="name-container" @click="loadStructure(structureData.right_child.left_child.right_child.cabinet_id)" style="cursor: pointer;">
-                                    <div class="name">{{ structureData.right_child.left_child.right_child.participant_name }}</div>
-                                    <div class="name">{{ structureData.right_child.left_child.right_child.participant_lastname }}</div>
-                                  </div>
-                                  <div class="d-flex flex-column">
-                                    <button 
-                                      class="name btn"
-                                      @click="showCabinetDetails(structureData.right_child.left_child.right_child.cabinet_id)"
-                                      @contextmenu.prevent="loadStructure(structureData.right_child.left_child.right_child.cabinet_id)"
-                                    >
-                                      {{ structureData.right_child.left_child.right_child.cabinet_personal_number }}
-                                    </button>
-                                    <span class="cabinet-number">№{{ structureData.right_child.left_child.right_child.cabinet_sequence_number }}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </a>
-                          </li>
-                        </ul>
-                      </li>
-
-                      <!-- Right-Right Child -->
-                      <li v-if="structureData.right_child.right_child">
-                        <a :style="{ background: `linear-gradient(${structureData.right_child.right_child.paket_color})` }">
-                          <div class="member-view-box">
-                            <div class="member-footer">
-                              <div class="name-container" @click="loadStructure(structureData.right_child.right_child.cabinet_id)" style="cursor: pointer;">
-                                <div class="name">{{ structureData.right_child.right_child.participant_name }}</div>
-                                <div class="name">{{ structureData.right_child.right_child.participant_lastname }}</div>
-                              </div>
-                              <div class="d-flex flex-column">
-                                <button 
-                                  class="name btn"
-                                  @click="showCabinetDetails(structureData.right_child.right_child.cabinet_id)"
-                                  @contextmenu.prevent="loadStructure(structureData.right_child.right_child.cabinet_id)"
-                                >
-                                  {{ structureData.right_child.right_child.cabinet_personal_number }}
-                                </button>
-                                <span class="cabinet-number">№{{ structureData.right_child.right_child.cabinet_sequence_number }}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </a>
-
-                        <!-- Third Level: Right-Right Children -->
-                        <ul v-if="structureData.right_child.right_child.left_child || structureData.right_child.right_child.right_child">
-                          <li v-if="structureData.right_child.right_child.left_child">
-                            <a :style="{ background: `linear-gradient(${structureData.right_child.right_child.left_child.paket_color})` }">
-                              <div class="member-view-box">
-                                <div class="member-footer">
-                                  <div class="name-container" @click="loadStructure(structureData.right_child.right_child.left_child.cabinet_id)" style="cursor: pointer;">
-                                    <div class="name">{{ structureData.right_child.right_child.left_child.participant_name }}</div>
-                                    <div class="name">{{ structureData.right_child.right_child.left_child.participant_lastname }}</div>
-                                  </div>
-                                  <div class="d-flex flex-column">
-                                    <button 
-                                      class="name btn"
-                                      @click="showCabinetDetails(structureData.right_child.right_child.left_child.cabinet_id)"
-                                      @contextmenu.prevent="loadStructure(structureData.right_child.right_child.left_child.cabinet_id)"
-                                    >
-                                      {{ structureData.right_child.right_child.left_child.cabinet_personal_number }}
-                                    </button>
-                                    <span class="cabinet-number">№{{ structureData.right_child.right_child.left_child.cabinet_sequence_number }}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </a>
-                          </li>
-                          <li v-if="structureData.right_child.right_child.right_child">
-                            <a :style="{ background: `linear-gradient(${structureData.right_child.right_child.right_child.paket_color})` }">
-                              <div class="member-view-box">
-                                <div class="member-footer">
-                                  <div class="name-container" @click="loadStructure(structureData.right_child.right_child.right_child.cabinet_id)" style="cursor: pointer;">
-                                    <div class="name">{{ structureData.right_child.right_child.right_child.participant_name }}</div>
-                                    <div class="name">{{ structureData.right_child.right_child.right_child.participant_lastname }}</div>
-                                  </div>
-                                  <div class="d-flex flex-column">
-                                    <button 
-                                      class="name btn"
-                                      @click="showCabinetDetails(structureData.right_child.right_child.right_child.cabinet_id)"
-                                      @contextmenu.prevent="loadStructure(structureData.right_child.right_child.right_child.cabinet_id)"
-                                    >
-                                      {{ structureData.right_child.right_child.right_child.cabinet_personal_number }}
-                                    </button>
-                                    <span class="cabinet-number">№{{ structureData.right_child.right_child.right_child.cabinet_sequence_number }}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </a>
-                          </li>
-                        </ul>
-                      </li>
-                    </ul>
-                  </li>
-                </ul>
-              </li>
-            </ul>
+        <!-- Binary Tree Structure -->
+        <div v-else-if="structureData && selectedCabinetId" class="binary-tree">
+          <!-- Root Node -->
+          <div class="tree-level">
+            <div class="tree-node-wrapper">
+              <div 
+                class="tree-node root"
+                :style="{ background: `linear-gradient(135deg, ${structureData.paket_color})` }"
+              >
+                <div 
+                  class="node-avatar"
+                  @click="loadStructure(structureData.cabinet_id)"
+                >
+                  <i class="bi bi-person-circle"></i>
+                </div>
+                <div class="node-name">
+                  {{ structureData.participant_name }} {{ structureData.participant_lastname }}
+                </div>
+                <button 
+                  class="node-id-btn"
+                  @click="showCabinetDetails(structureData.cabinet_id)"
+                >
+                  {{ structureData.cabinet_personal_number }}
+                  <i class="bi bi-info-circle"></i>
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <!-- Empty State -->
-        <div v-else-if="!loadingStructure && !selectedCabinetId" class="empty-state">
-          <i class="bi bi-diagram-3"></i>
-          <p>Выберите кабинет для просмотра структуры</p>
+          <!-- Level 1 -->
+          <div class="tree-level" v-if="structureData.left_child || structureData.right_child">
+            <div class="tree-row">
+              <!-- Left Child -->
+              <div class="tree-node-wrapper">
+                <div 
+                  v-if="structureData.left_child"
+                  class="tree-node"
+                  :style="{ background: `linear-gradient(135deg, ${structureData.left_child.paket_color})` }"
+                >
+                  <div 
+                    class="node-avatar"
+                    @click="loadStructure(structureData.left_child.cabinet_id)"
+                  >
+                    <i class="bi bi-person-circle"></i>
+                  </div>
+                  <div class="node-name">
+                    {{ structureData.left_child.participant_name }} {{ structureData.left_child.participant_lastname }}
+                  </div>
+                  <button 
+                    class="node-id-btn"
+                    @click="showCabinetDetails(structureData.left_child.cabinet_id)"
+                  >
+                    {{ structureData.left_child.cabinet_personal_number }}
+                    <i class="bi bi-info-circle"></i>
+                  </button>
+                </div>
+                <div v-else class="tree-node empty">
+                  <i class="bi bi-plus-circle"></i>
+                  <span>Свободно</span>
+                </div>
+              </div>
+
+              <!-- Right Child -->
+              <div class="tree-node-wrapper">
+                <div 
+                  v-if="structureData.right_child"
+                  class="tree-node"
+                  :style="{ background: `linear-gradient(135deg, ${structureData.right_child.paket_color})` }"
+                >
+                  <div 
+                    class="node-avatar"
+                    @click="loadStructure(structureData.right_child.cabinet_id)"
+                  >
+                    <i class="bi bi-person-circle"></i>
+                  </div>
+                  <div class="node-name">
+                    {{ structureData.right_child.participant_name }} {{ structureData.right_child.participant_lastname }}
+                  </div>
+                  <button 
+                    class="node-id-btn"
+                    @click="showCabinetDetails(structureData.right_child.cabinet_id)"
+                  >
+                    {{ structureData.right_child.cabinet_personal_number }}
+                    <i class="bi bi-info-circle"></i>
+                  </button>
+                </div>
+                <div v-else class="tree-node empty">
+                  <i class="bi bi-plus-circle"></i>
+                  <span>Свободно</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Level 2 -->
+          <div class="tree-level" v-if="hasLevel2Children">
+            <div class="tree-row level-2">
+              <!-- Left-Left -->
+              <div class="tree-node-wrapper">
+                <div 
+                  v-if="structureData.left_child?.left_child"
+                  class="tree-node small"
+                  :style="{ background: `linear-gradient(135deg, ${structureData.left_child.left_child.paket_color})` }"
+                  @click="loadStructure(structureData.left_child.left_child.cabinet_id)"
+                >
+                  <div class="small-id">{{ structureData.left_child.left_child.cabinet_personal_number }}</div>
+                </div>
+                <div v-else class="tree-node small empty">
+                  <i class="bi bi-dash-circle"></i>
+                </div>
+              </div>
+
+              <!-- Left-Right -->
+              <div class="tree-node-wrapper">
+                <div 
+                  v-if="structureData.left_child?.right_child"
+                  class="tree-node small"
+                  :style="{ background: `linear-gradient(135deg, ${structureData.left_child.right_child.paket_color})` }"
+                  @click="loadStructure(structureData.left_child.right_child.cabinet_id)"
+                >
+                  <div class="small-id">{{ structureData.left_child.right_child.cabinet_personal_number }}</div>
+                </div>
+                <div v-else class="tree-node small empty">
+                  <i class="bi bi-dash-circle"></i>
+                </div>
+              </div>
+
+              <!-- Right-Left -->
+              <div class="tree-node-wrapper">
+                <div 
+                  v-if="structureData.right_child?.left_child"
+                  class="tree-node small"
+                  :style="{ background: `linear-gradient(135deg, ${structureData.right_child.left_child.paket_color})` }"
+                  @click="loadStructure(structureData.right_child.left_child.cabinet_id)"
+                >
+                  <div class="small-id">{{ structureData.right_child.left_child.cabinet_personal_number }}</div>
+                </div>
+                <div v-else class="tree-node small empty">
+                  <i class="bi bi-dash-circle"></i>
+                </div>
+              </div>
+
+              <!-- Right-Right -->
+              <div class="tree-node-wrapper">
+                <div 
+                  v-if="structureData.right_child?.right_child"
+                  class="tree-node small"
+                  :style="{ background: `linear-gradient(135deg, ${structureData.right_child.right_child.paket_color})` }"
+                  @click="loadStructure(structureData.right_child.right_child.cabinet_id)"
+                >
+                  <div class="small-id">{{ structureData.right_child.right_child.cabinet_personal_number }}</div>
+                </div>
+                <div v-else class="tree-node small empty">
+                  <i class="bi bi-dash-circle"></i>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </div>
@@ -437,10 +209,6 @@
                 <div class="detail-row">
                   <span class="detail-label">Код:</span>
                   <span class="detail-value">{{ selectedCabinet.code }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Номер последовательности:</span>
-                  <span class="detail-value">№{{ selectedCabinet.sequence_number }}</span>
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">Статус:</span>
@@ -514,11 +282,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import PageHeader from '../components/PageHeader.vue'
 import MenuModal from '../components/MenuModal.vue'
 import { BACKEND_API_URL } from '../config'
 
+const router = useRouter()
+const route = useRoute()
 const showMenu = ref(false)
 const loadingCabinets = ref(false)
 const loadingStructure = ref(false)
@@ -526,6 +297,20 @@ const cabinets = ref([])
 const selectedCabinetId = ref(null)
 const structureData = ref(null)
 const selectedCabinet = ref(null)
+const ownCabinetId = ref(null)
+const navigationHistory = ref([])
+
+const canGoBack = computed(() => {
+  return navigationHistory.value.length > 0 && 
+         selectedCabinetId.value !== ownCabinetId.value
+})
+
+const hasLevel2Children = computed(() => {
+  return structureData.value?.left_child?.left_child ||
+         structureData.value?.left_child?.right_child ||
+         structureData.value?.right_child?.left_child ||
+         structureData.value?.right_child?.right_child
+})
 
 const fetchCabinets = async () => {
   loadingCabinets.value = true
@@ -538,7 +323,7 @@ const fetchCabinets = async () => {
     }
 
     const response = await fetch(
-      `${BACKEND_API_URL}/api/cabinets/?page=1&page_size=100`,
+      `${BACKEND_API_URL}/api/cabinets/?page=1&page_size=1`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -551,18 +336,18 @@ const fetchCabinets = async () => {
       const data = await response.json()
       cabinets.value = data.cabinets || []
       
-      // Try to restore previously selected cabinet from localStorage
-      const savedCabinetId = localStorage.getItem('selected_cabinet_id')
+      if (cabinets.value.length > 0) {
+        ownCabinetId.value = cabinets.value[0].id
+      }
       
-      if (savedCabinetId && cabinets.value.some(c => c.id === savedCabinetId)) {
-        // If saved cabinet exists in the list, use it
-        selectedCabinetId.value = savedCabinetId
-        await loadStructure(savedCabinetId)
+      const cabinetIdFromUrl = route.query.cabinet
+      
+      if (cabinetIdFromUrl) {
+        selectedCabinetId.value = cabinetIdFromUrl
+        await loadStructure(cabinetIdFromUrl, false)
       } else if (cabinets.value.length > 0) {
-        // Otherwise, select first cabinet and save it
         selectedCabinetId.value = cabinets.value[0].id
-        localStorage.setItem('selected_cabinet_id', cabinets.value[0].id)
-        await loadStructure(cabinets.value[0].id)
+        await loadStructure(cabinets.value[0].id, false)
       }
     }
   } catch (err) {
@@ -572,14 +357,21 @@ const fetchCabinets = async () => {
   }
 }
 
-const loadStructure = async (cabinetId) => {
+const loadStructure = async (cabinetId, addToHistory = true) => {
   if (!cabinetId) return
   
   loadingStructure.value = true
+  
+  if (addToHistory && selectedCabinetId.value && selectedCabinetId.value !== cabinetId) {
+    navigationHistory.value.push(selectedCabinetId.value)
+  }
+  
   selectedCabinetId.value = cabinetId
   
-  // Save selected cabinet to localStorage
-  localStorage.setItem('selected_cabinet_id', cabinetId)
+  router.push({ 
+    path: '/structure', 
+    query: { cabinet: cabinetId } 
+  })
   
   try {
     const token = localStorage.getItem('access_token')
@@ -657,11 +449,18 @@ const formatDate = (dateString) => {
   })
 }
 
-const onCabinetChange = () => {
-  if (selectedCabinetId.value) {
-    loadStructure(selectedCabinetId.value)
+const goBack = async () => {
+  if (navigationHistory.value.length > 0) {
+    const previousCabinetId = navigationHistory.value.pop()
+    await loadStructure(previousCabinetId, false)
   }
 }
+
+watch(() => route.query.cabinet, (newCabinetId) => {
+  if (newCabinetId && newCabinetId !== selectedCabinetId.value) {
+    loadStructure(newCabinetId, false)
+  }
+})
 
 onMounted(() => {
   fetchCabinets()
@@ -686,56 +485,51 @@ onMounted(() => {
 }
 
 .structure-header {
-  text-align: center;
-  margin-bottom: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 3rem;
+  position: relative;
 }
 
 .page-title {
   font-size: 32px;
   font-weight: 700;
   color: white;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0;
 }
 
-/* Selector Section */
-.selector-section {
+.btn-back {
+  position: absolute;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
   background: white;
-  border-radius: 20px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
+  color: #667eea;
+  border: 2px solid white;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.selector-label {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  color: #495057;
-  margin-bottom: 0.75rem;
+.btn-back:hover {
+  background: #667eea;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
 }
 
-.cabinet-select {
-  width: 100%;
-  padding: 0.875rem 1rem;
-  border: 2px solid #e9ecef;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 500;
-  color: #495057;
-  background: white;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.cabinet-select:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+.btn-back i {
+  font-size: 18px;
 }
 
 /* Loading State */
-.loading-state,
-.empty-state {
+.loading-state {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -746,16 +540,10 @@ onMounted(() => {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
-.loading-state p,
-.empty-state p {
+.loading-state p {
   margin-top: 1rem;
   color: #6c757d;
   font-size: 16px;
-}
-
-.empty-state i {
-  font-size: 64px;
-  color: #6c757d;
 }
 
 .visually-hidden {
@@ -770,286 +558,271 @@ onMounted(() => {
   border-width: 0;
 }
 
-/* Genealogy Tree Styles */
-.btn {
-  padding: 0 !important;
-}
-
-.genealogy-scroll::-webkit-scrollbar {
-  width: 5px;
-  height: 8px;
-}
-
-.genealogy-scroll::-webkit-scrollbar-track {
-  border-radius: 10px;
-  background-color: #e4e4e4;
-}
-
-.genealogy-scroll::-webkit-scrollbar-thumb {
-  background: #212121;
-  border-radius: 10px;
-  transition: 0.5s;
-}
-
-.genealogy-scroll::-webkit-scrollbar-thumb:hover {
-  background: #d5b14c;
-  transition: 0.5s;
-}
-
-.genealogy-body {
-  white-space: nowrap;
+/* Binary Tree Styles */
+.binary-tree {
+  padding: 2rem 0;
   overflow-x: auto;
-  overflow-y: hidden;
-  padding: 50px;
-  min-height: 500px;
-  padding-top: 10px;
-  text-align: center;
-  background: white;
-  border-radius: 24px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  animation: fadeIn 0.6s ease-out;
 }
 
-.genealogy-tree {
-  display: inline-block;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.genealogy-tree ul {
-  padding-top: 20px;
-  position: relative;
-  padding-left: 0px;
+.tree-level {
   display: flex;
+  justify-content: center;
+  margin-bottom: 4rem;
+  position: relative;
+}
+
+.tree-row {
+  display: flex;
+  gap: 3rem;
+  justify-content: center;
+  position: relative;
+}
+
+.tree-row.level-2 {
+  gap: 1.5rem;
+}
+
+/* Connecting Lines */
+.tree-level:not(:first-child) .tree-node-wrapper::before {
+  content: '';
+  position: absolute;
+  top: -4rem;
+  left: 50%;
+  width: 2px;
+  height: 4rem;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateX(-50%);
+}
+
+/* Horizontal line for level 1 */
+.tree-row:not(.level-2)::before {
+  content: '';
+  position: absolute;
+  top: -4rem;
+  left: 25%;
+  right: 25%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Horizontal lines for level 2 */
+.tree-row.level-2 .tree-node-wrapper:nth-child(1)::after,
+.tree-row.level-2 .tree-node-wrapper:nth-child(2)::after {
+  content: '';
+  position: absolute;
+  top: -4rem;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.3);
+  width: calc(50% + 0.75rem);
+}
+
+.tree-row.level-2 .tree-node-wrapper:nth-child(1)::after {
+  left: 50%;
+}
+
+.tree-row.level-2 .tree-node-wrapper:nth-child(2)::after {
+  right: 50%;
+}
+
+.tree-row.level-2 .tree-node-wrapper:nth-child(3)::after,
+.tree-row.level-2 .tree-node-wrapper:nth-child(4)::after {
+  content: '';
+  position: absolute;
+  top: -4rem;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.3);
+  width: calc(50% + 0.75rem);
+}
+
+.tree-row.level-2 .tree-node-wrapper:nth-child(3)::after {
+  left: 50%;
+}
+
+.tree-row.level-2 .tree-node-wrapper:nth-child(4)::after {
+  right: 50%;
+}
+
+/* Tree Nodes */
+.tree-node-wrapper {
+  position: relative;
+}
+
+.tree-node {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  width: 180px;
+  max-width: 180px;
+  height: 200px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.tree-node:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+}
+
+.tree-node.root {
+  width: 220px;
+  max-width: 220px;
+  height: 220px;
+  padding: 2rem;
+}
+
+.tree-node.small {
+  width: 90px;
+  max-width: 90px;
+  height: 90px;
+  padding: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
   justify-content: center;
 }
 
-.genealogy-tree li {
-  float: left;
+/* Small card personal number */
+.small-id {
+  font-size: 12px;
+  font-weight: 700;
+  color: white;
   text-align: center;
-  list-style-type: none;
-  position: relative;
-  padding: 20px 5px 0 5px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  letter-spacing: 0.3px;
 }
 
-.genealogy-tree li::before,
-.genealogy-tree li::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 50%;
-  border-top: 2px solid #ccc;
-  width: 50%;
-  height: 18px;
+/* Empty Nodes */
+.tree-node.empty {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.6);
+  cursor: default;
 }
 
-.genealogy-tree li::after {
-  right: auto;
-  left: 50%;
-  border-left: 2px solid #ccc;
+.tree-node.empty:hover {
+  transform: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
-.genealogy-tree li:only-child::after,
-.genealogy-tree li:only-child::before {
-  display: none;
+.tree-node.empty i {
+  font-size: 32px;
 }
 
-.genealogy-tree li:only-child {
-  padding-top: 0;
-}
-
-.genealogy-tree li:first-child::before,
-.genealogy-tree li:last-child::after {
-  border: 0 none;
-}
-
-.genealogy-tree li:last-child::before {
-  border-right: 2px solid #ccc;
-  border-radius: 0 5px 0 0;
-}
-
-.genealogy-tree li:first-child::after {
-  border-radius: 5px 0 0 0;
-}
-
-.genealogy-tree ul ul::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 50%;
-  border-left: 2px solid #ccc;
-  width: 0;
-  height: 20px;
-}
-
-.genealogy-tree li a {
-  text-decoration: none;
-  color: #666;
-  font-family: arial, verdana, tahoma;
-  font-size: 11px;
-  display: inline-block;
-  border-radius: 20px;
-}
-
-.genealogy-tree li a:hover,
-.genealogy-tree li a:hover + ul li a {
-  background: #ffffff;
-  color: #fbba00;
-}
-
-.genealogy-tree li a:hover + ul li::after,
-.genealogy-tree li a:hover + ul li::before,
-.genealogy-tree li a:hover + ul::before,
-.genealogy-tree li a:hover + ul ul::before {
-  border-color: #fbba00;
-}
-
-.member-view-box {
-  padding: 20px;
-  text-align: center;
-  border-radius: 20px;
-  position: relative;
-  border: 1px;
-  border-color: #e4e4e4;
-  border-style: solid;
-}
-
-.member-footer {
-  text-align: center;
-}
-
-.name-container {
-  margin-bottom: 10px;
-}
-
-.member-footer .name {
-  color: #ffffff;
-  font-size: 20px;
-  margin-bottom: 5px;
-}
-
-.name {
-  color: #ffffff;
-  font-size: 20px;
-  margin-bottom: 5px;
-}
-
-.cabinet-number {
-  color: rgba(255, 255, 255, 0.8);
+.tree-node.empty span {
   font-size: 12px;
   font-weight: 600;
-  margin-top: 2px;
 }
 
-.d-flex {
+.tree-node.small.empty {
+  width: 90px;
+  max-width: 90px;
+  height: 90px;
+}
+
+.tree-node.small.empty i {
+  font-size: 24px;
+}
+
+/* Node Content */
+.node-avatar {
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+  border-radius: 50%;
   display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.flex-column {
-  flex-direction: column;
+.node-avatar:hover {
+  background: rgba(255, 255, 255, 0.4);
+  transform: scale(1.05);
 }
 
-/* Mobile optimizations */
-@media (max-width: 600px) {
-  .structure-main {
-    padding: 1rem 0.5rem;
-  }
-
-  .page-title {
-    font-size: 20px;
-  }
-
-  .selector-section {
-    padding: 1rem;
-    margin-bottom: 1rem;
-  }
-
-  .genealogy-body {
-    padding: 10px;
-    min-height: 400px;
-  }
-
-  .genealogy-tree li {
-    padding: 10px 3px 0 3px;
-  }
-
-  .genealogy-tree ul {
-    padding-top: 10px;
-  }
-
-  .genealogy-tree li::before,
-  .genealogy-tree li::after {
-    height: 10px;
-  }
-
-  .genealogy-tree ul ul::before {
-    height: 10px;
-  }
-
-  .member-view-box {
-    padding: 6px 8px;
-    /* border-radius: 12px; */
-    /* min-width: 80px; */
-  }
-
-  .member-footer .name {
-    color: #ffffff;
-    font-size: 9px;
-    margin-bottom: 2px;
-    line-height: 1.2;
-  }
-
-  .name {
-    color: #ffffff;
-    font-size: 9px;
-    margin-bottom: 2px;
-    line-height: 1.2;
-  }
-
-  .name-container {
-    margin-bottom: 4px;
-  }
-
-  .cabinet-number {
-    font-size: 8px;
-    margin-top: 1px;
-  }
-
-  .d-flex.flex-column {
-    gap: 2px;
-  }
+.tree-node.root .node-avatar {
+  width: 70px;
+  height: 70px;
+  font-size: 42px;
 }
 
-/* Small phones */
-@media (max-width: 380px) {
-  .genealogy-body {
-    padding: 5px;
-  }
-
-  .member-view-box {
-    padding: 4px 6px;
-    min-width: 70px;
-  }
-
-  .member-footer .name,
-  .name {
-    font-size: 8px;
-  }
-
-  .genealogy-tree li {
-    padding: 8px 2px 0 2px;
-  }
+.node-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  text-align: center;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  line-height: 1.2;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
 }
 
-/* Tablet */
-@media (min-width: 768px) {
-  .structure-main {
-    padding: 3rem 2rem;
-  }
+.tree-node.root .node-name {
+  font-size: 14px;
 }
 
-/* Desktop */
-@media (min-width: 1024px) {
-  .structure-main {
-    padding: 3rem;
-  }
+/* Personal Number Button */
+.node-id-btn {
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  background: rgba(255, 255, 255, 0.25);
+  padding: 0.4rem 0.75rem;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.node-id-btn:hover {
+  background: rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.node-id-btn:active {
+  transform: translateY(0);
+}
+
+.node-id-btn i {
+  font-size: 12px;
+  opacity: 0.9;
 }
 
 /* Modal Styles */
@@ -1063,9 +836,10 @@ onMounted(() => {
   backdrop-filter: blur(8px);
   z-index: 2000;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   overflow-y: auto;
+  padding: 1rem;
 }
 
 .modal-content {
@@ -1116,14 +890,15 @@ onMounted(() => {
 .modal-title {
   font-size: 28px;
   font-weight: 700;
-  color: #667eea;
+  color: #1a1a1a;
   margin-bottom: 0.5rem;
 }
 
 .modal-subtitle {
   font-size: 16px;
-  color: #6c757d;
-  font-weight: 500;
+  color: #667eea;
+  font-weight: 600;
+  margin: 0;
 }
 
 .modal-details {
@@ -1139,7 +914,7 @@ onMounted(() => {
 }
 
 .section-title {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   color: #495057;
   margin-bottom: 1rem;
@@ -1170,23 +945,17 @@ onMounted(() => {
   text-align: right;
 }
 
-.detail-value.status {
-  color: #667eea;
-}
-
 .detail-value.turnover {
   color: #28a745;
-  font-size: 16px;
 }
 
 .modal-actions {
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 2px solid #f0f0f0;
+  margin-top: 2rem;
+  display: flex;
+  justify-content: center;
 }
 
 .btn-switch {
-  width: 100%;
   padding: 1rem 2rem;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -1223,10 +992,138 @@ onMounted(() => {
   transform: scale(0.9);
 }
 
-/* Mobile modal */
-@media (max-width: 600px) {
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .structure-main {
+    padding: 1.5rem 0.5rem;
+  }
+
+  .structure-header {
+    margin-bottom: 2rem;
+    padding: 0 1rem;
+  }
+
+  .page-title {
+    font-size: 24px;
+  }
+
+  .btn-back {
+    padding: 0.5rem 1rem;
+    font-size: 14px;
+  }
+
+  .btn-back span {
+    display: none;
+  }
+
+  /* Binary Tree Mobile Adjustments */
+  .binary-tree {
+    padding: 1rem 0;
+    min-width: 100%;
+  }
+
+  .tree-level {
+    margin-bottom: 3rem;
+  }
+
+  .tree-row {
+    gap: 1.5rem;
+  }
+
+  .tree-row.level-2 {
+    gap: 0.75rem;
+  }
+
+  /* Adjust connecting lines for mobile */
+  .tree-level:not(:first-child) .tree-node-wrapper::before {
+    top: -3rem;
+    height: 3rem;
+  }
+
+  .tree-row:not(.level-2)::before {
+    top: -3rem;
+  }
+
+  .tree-row.level-2 .tree-node-wrapper::after {
+    top: -3rem !important;
+  }
+
+  /* Smaller nodes on mobile */
+  .tree-node {
+    width: 140px;
+    max-width: 140px;
+    height: 170px;
+    padding: 1rem;
+  }
+
+  .tree-node.root {
+    width: 160px;
+    max-width: 160px;
+    height: 190px;
+    padding: 1.5rem;
+  }
+
+  .tree-node.small {
+    width: 70px;
+    max-width: 70px;
+    height: 70px;
+    padding: 0.4rem;
+  }
+
+  .small-id {
+    font-size: 10px;
+  }
+
+  .node-avatar {
+    width: 45px;
+    height: 45px;
+    font-size: 26px;
+  }
+
+  .tree-node.root .node-avatar {
+    width: 55px;
+    height: 55px;
+    font-size: 32px;
+  }
+
+  .node-name {
+    font-size: 11px;
+    line-height: 1.1;
+  }
+
+  .tree-node.root .node-name {
+    font-size: 12px;
+  }
+
+  .node-id-btn {
+    font-size: 10px;
+    padding: 0.3rem 0.5rem;
+  }
+
+  .node-id-btn i {
+    font-size: 9px;
+  }
+
+  .tree-node.empty i {
+    font-size: 24px;
+  }
+
+  .tree-node.empty span {
+    font-size: 11px;
+  }
+
+  .tree-node.small.empty {
+    width: 70px;
+    max-width: 70px;
+    height: 70px;
+  }
+
+  .tree-node.small.empty i {
+    font-size: 20px;
+  }
+
+  /* Modal adjustments */
   .modal-content {
-    max-width: 100%;
     margin: 0.5rem;
   }
 
@@ -1240,6 +1137,69 @@ onMounted(() => {
 
   .detail-section {
     padding: 1rem;
+  }
+}
+
+/* Extra small devices */
+@media (max-width: 480px) {
+  .tree-row {
+    gap: 0.6rem;
+  }
+
+  .tree-row.level-2 {
+    gap: 0.3rem;
+  }
+
+  .tree-node {
+    width: 110px;
+    max-width: 110px;
+    height: 140px;
+    padding: 0.75rem;
+  }
+
+  .tree-node.root {
+    width: 130px;
+    max-width: 130px;
+    height: 160px;
+    padding: 1rem;
+  }
+
+  .tree-node.small {
+    width: 60px;
+    max-width: 60px;
+    height: 60px;
+    padding: 0.3rem;
+  }
+
+  .small-id {
+    font-size: 9px;
+  }
+
+  .node-name {
+    font-size: 10px;
+  }
+
+  .tree-node.root .node-name {
+    font-size: 11px;
+  }
+
+  .node-id-btn {
+    font-size: 9px;
+    padding: 0.25rem 0.4rem;
+  }
+
+  .node-id-btn i {
+    font-size: 8px;
+  }
+
+  .tree-node.small.empty {
+    width: 60px;
+    max-width: 60px;
+    height: 60px;
+  }
+
+  .tree-node.small.empty i {
+    font-size: 18px;
   }
 }
 </style>

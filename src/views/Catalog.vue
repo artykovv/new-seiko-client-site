@@ -101,7 +101,7 @@ const fetchProducts = async () => {
     }
 
     const response = await fetch(
-      `${BACKEND_API_URL}/api/admin/products/`,
+      `${BACKEND_API_URL}/api/products/`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
