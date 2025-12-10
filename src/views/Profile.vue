@@ -187,7 +187,7 @@ const fetchProfile = async () => {
     }
 
     const response = await fetch(
-      `${BACKEND_API_URL}/api/client/participants/me`,
+      `${BACKEND_API_URL}/api/participants/me`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -244,7 +244,7 @@ const updateProfile = async () => {
     }
 
     const response = await fetch(
-      `${BACKEND_API_URL}/api/client/participants/me`,
+      `${BACKEND_API_URL}/api/participants/me`,
       {
         method: 'PATCH',
         headers: {

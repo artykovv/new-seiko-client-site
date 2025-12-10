@@ -964,7 +964,7 @@ const handleSubmit = async () => {
       }
     }
 
-    const response = await fetch(`${BACKEND_API_URL}/api/client/participants/register`, {
+    const response = await fetch(`${BACKEND_API_URL}/api/participants/register`, {
       method: 'POST',
       headers: {
         'accept': 'application/json',

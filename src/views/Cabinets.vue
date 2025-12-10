@@ -370,7 +370,7 @@ const fetchCabinets = async (pageNum = 1) => {
     })
 
     const response = await fetch(
-      `${BACKEND_API_URL}/api/client/cabinets/?${params.toString()}`,
+      `${BACKEND_API_URL}/api/cabinets/?${params.toString()}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -538,7 +538,7 @@ const fetchCabinets = async () => {
     }
 
     const response = await fetch(
-      `${BACKEND_API_URL}/api/client/cabinets/?page=1&page_size=100`,
+      `${BACKEND_API_URL}/api/cabinets/?page=1&page_size=100`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -589,7 +589,7 @@ const loadStructure = async (cabinetId) => {
     }
 
     const response = await fetch(
-      `${BACKEND_API_URL}/api/client/structure/${cabinetId}`,
+      `${BACKEND_API_URL}/api/structure/${cabinetId}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -619,7 +619,7 @@ const showCabinetDetails = async (cabinetId) => {
     }
 
     const response = await fetch(
-      `${BACKEND_API_URL}/api/client/cabinets/${cabinetId}`,
+      `${BACKEND_API_URL}/api/cabinets/${cabinetId}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,

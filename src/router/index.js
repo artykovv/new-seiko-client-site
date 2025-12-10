@@ -110,7 +110,7 @@ router.beforeEach(async (to, from, next) => {
 
     if (authRequired && token) {
         try {
-            const response = await fetch(`${BACKEND_API_URL}/api/client/auth/validate-token`, {
+            const response = await fetch(`${BACKEND_API_URL}/api/auth/validate-token`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,

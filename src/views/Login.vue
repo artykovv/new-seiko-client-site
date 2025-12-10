@@ -139,7 +139,7 @@ const handleLogin = async () => {
     formData.append('client_id', '')
     formData.append('client_secret', '')
 
-    const response = await fetch(`${BACKEND_API_URL}/api/client/auth/jwt/login`, {
+    const response = await fetch(`${BACKEND_API_URL}/api/auth/jwt/login`, {
       method: 'POST',
       headers: {
         'accept': 'application/json',

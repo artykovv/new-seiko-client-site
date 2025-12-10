@@ -158,7 +158,7 @@ const fetchCabinets = async () => {
     }
 
     const response = await fetch(
-      `${BACKEND_API_URL}/api/client/cabinets/?page=1&page_size=100`,
+      `${BACKEND_API_URL}/api/cabinets/?page=1&page_size=100`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -198,7 +198,7 @@ const fetchBonuses = async () => {
     }
 
     const response = await fetch(
-      `${BACKEND_API_URL}/api/client/bonuses/${activeTab.value}?${params.toString()}`,
+      `${BACKEND_API_URL}/api/bonuses/${activeTab.value}?${params.toString()}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,

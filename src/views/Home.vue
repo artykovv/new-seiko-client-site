@@ -201,7 +201,7 @@ const fetchUserData = async () => {
     if (!token) return
 
     const response = await fetch(
-      `${BACKEND_API_URL}/api/client/participants/me`,
+      `${BACKEND_API_URL}/api/participants/me`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -224,7 +224,7 @@ const fetchCabinetsCount = async () => {
     if (!token) return
 
     const response = await fetch(
-      `${BACKEND_API_URL}/api/client/cabinets/?page=1&page_size=1`,
+      `${BACKEND_API_URL}/api/cabinets/?page=1&page_size=1`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -252,7 +252,7 @@ const fetchBonusesSummary = async () => {
     if (!token) return
 
     const response = await fetch(
-      `${BACKEND_API_URL}/api/client/bonuses/by-month/${selectedMonth.value}`,
+      `${BACKEND_API_URL}/api/bonuses/by-month/${selectedMonth.value}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,

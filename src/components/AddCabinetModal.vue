@@ -539,7 +539,7 @@ const createCabinet = async () => {
       }
     }
     
-    const response = await fetch(`${BACKEND_API_URL}/api/client/cabinets/`, {
+    const response = await fetch(`${BACKEND_API_URL}/api/cabinets/`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
