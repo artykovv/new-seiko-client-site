@@ -12,14 +12,15 @@
         <!-- Filter Section -->
         <div class="selector-section" v-if="selectedCabinetId">
           <div class="filter-toggle">
-            <label class="toggle-label">
+            <label class="toggle-switch">
               <input 
                 type="checkbox" 
                 v-model="showRegistered" 
-                @change="loadPersonalCabinets"
-                class="toggle-checkbox"
+                @change="loadPersonalCabinets()"
+                class="toggle-input"
               />
-              <span class="toggle-text">Только зарегистрированные</span>
+              <span class="toggle-slider"></span>
+              <span class="toggle-label-text">Только зарегистрированные</span>
             </label>
           </div>
         </div>
@@ -36,29 +37,29 @@
         <div v-else-if="selectedCabinetId && personalCabinets.length > 0" class="personals-content">
           <div class="personals-grid">
             <div v-for="personal in personalCabinets" :key="personal.id" class="personal-card">
-              <div class="personal-header" :style="{ background: `linear-gradient(${personal.paket.color})` }">
+              <div class="personal-header" :style="{ background: getGradientColor(personal.paket_name) }">
                 <div class="personal-number">{{ personal.personal_number }}</div>
-                <div class="personal-status">{{ personal.status.name }}</div>
+                <div class="personal-status">{{ personal.status_name }}</div>
               </div>
 
               <div class="personal-body">
                 <div class="personal-info-row">
                   <span class="info-label">ФИО:</span>
                   <span class="info-value">
-                    {{ personal.participant.lastname }} {{ personal.participant.name }}
+                    {{ personal.participant_lastname }} {{ personal.participant_name }}
                   </span>
                 </div>
                 <div class="personal-info-row">
-                  <span class="info-label">Код:</span>
-                  <span class="info-value">{{ personal.code }}</span>
+                  <span class="info-label">Персональный номер:</span>
+                  <span class="info-value">{{ personal.personal_number }}</span>
                 </div>
                 <div class="personal-info-row">
                   <span class="info-label">Пакет:</span>
-                  <span class="info-value">{{ personal.paket.name }}</span>
+                  <span class="info-value">{{ personal.paket_name }}</span>
                 </div>
                 <div class="personal-info-row">
                   <span class="info-label">Филиал:</span>
-                  <span class="info-value">{{ personal.branch.name }}</span>
+                  <span class="info-value">{{ personal.branch_name }}</span>
                 </div>
                 <div class="personal-info-row">
                   <span class="info-label">Регистрация:</span>
@@ -70,10 +71,6 @@
                     {{ personal.registered ? 'Зарегистрирован' : 'Не зарегистрирован' }}
                   </span>
                 </div>
-              </div>
-
-              <div class="personal-footer">
-                <span class="sequence-badge">№{{ personal.sequence_number }}</span>
               </div>
             </div>
           </div>
@@ -226,6 +223,18 @@ const changePage = (newPage) => {
   }
 }
 
+// Get gradient color based on paket name
+const getGradientColor = (paketName) => {
+  const gradients = {
+    'VIP START': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    'PARTNER': 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    'BUSINESS': 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+    'PREMIUM': 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+    'VIP': 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
+  }
+  return gradients[paketName] || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+}
+
 const formatDate = (dateString) => {
   if (!dateString) return '-'
   const date = new Date(dateString)
@@ -311,32 +320,74 @@ onMounted(() => {
   box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
 }
 
-/* Filter Toggle */
-.filter-toggle {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 2px solid #f0f0f0;
-}
-
-.toggle-label {
+/* Modern Toggle Switch */
+.toggle-switch {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
   cursor: pointer;
   user-select: none;
+  position: relative;
 }
 
-.toggle-checkbox {
-  width: 20px;
-  height: 20px;
-  cursor: pointer;
-  accent-color: #667eea;
+.toggle-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
 }
 
-.toggle-text {
-  font-size: 14px;
-  font-weight: 500;
-  color: #495057;
+.toggle-slider {
+  position: relative;
+  width: 52px;
+  height: 28px;
+  background: #e9ecef;
+  border-radius: 34px;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  height: 22px;
+  width: 22px;
+  left: 3px;
+  top: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-input:checked + .toggle-slider {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.toggle-input:checked + .toggle-slider::before {
+  transform: translateX(24px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.toggle-switch:hover .toggle-slider {
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+}
+
+.toggle-input:focus + .toggle-slider {
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
+}
+
+.toggle-label-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: #2c3e50;
+  transition: color 0.3s ease;
+}
+
+.toggle-input:checked ~ .toggle-label-text {
+  color: #667eea;
 }
 
 /* Loading State */
