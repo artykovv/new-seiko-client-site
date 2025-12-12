@@ -100,8 +100,9 @@
 
           <!-- Total Count -->
           <div class="total-count">
-            Всего личных кабинетов: {{ totalCabinets }}
+            Всего личников: {{ totalCabinets }}
           </div>
+
         </div>
 
         <!-- Empty State -->
