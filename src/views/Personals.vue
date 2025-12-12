@@ -194,7 +194,7 @@ const loadPersonalCabinets = async (pageNum = 1) => {
     })
 
     const response = await fetch(
-      `${BACKEND_API_URL}/api/admin/cabinets/search/?${params.toString()}`,
+      `${BACKEND_API_URL}/api/cabinets/search/?${params.toString()}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
