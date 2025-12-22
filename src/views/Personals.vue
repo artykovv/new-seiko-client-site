@@ -50,6 +50,10 @@
                   </span>
                 </div>
                 <div class="personal-info-row">
+                  <span class="info-label">Email:</span>
+                  <span class="info-value email-value">{{ personal.email || '-' }}</span>
+                </div>
+                <div class="personal-info-row">
                   <span class="info-label">Персональный номер:</span>
                   <span class="info-value">{{ personal.personal_number }}</span>
                 </div>
@@ -518,6 +522,12 @@ onMounted(() => {
 
 .info-value.registered {
   color: #28a745;
+}
+
+.info-value.email-value {
+  word-break: break-all;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .personal-footer {

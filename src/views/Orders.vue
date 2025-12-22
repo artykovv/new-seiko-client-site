@@ -35,8 +35,8 @@
             >
               <div class="order-header">
                 <div class="order-id">Заказ #{{ order.id }}</div>
-                <div class="order-status" :class="`status-${order.status.name}`">
-                  {{ order.status.description }}
+                <div class="order-status" :class="`status-${order.status?.name || 'pending'}`">
+                  {{ order.status?.description || 'В обработке' }}
                 </div>
               </div>
 
@@ -46,16 +46,28 @@
                   <span class="info-value">{{ order.cabinet.personal_number }}</span>
                 </div> -->
                 <div class="order-info-row">
-                  <span class="info-label">Участник:</span>
-                  <span class="info-value">{{ formatParticipantName(order.cabinet.participant) }}</span>
-                </div>
-                <div class="order-info-row">
                   <span class="info-label">Дата заказа:</span>
                   <span class="info-value">{{ formatDate(order.order_date) }}</span>
                 </div>
-                <div class="order-info-row">
+                <div class="order-info-row" v-if="order.delivery_method">
                   <span class="info-label">Способ доставки:</span>
                   <span class="info-value">{{ order.delivery_method.description }}</span>
+                </div>
+                <div class="order-info-row" v-if="order.payment_method">
+                  <span class="info-label">Способ оплаты:</span>
+                  <span class="info-value">{{ order.payment_method.name }}</span>
+                </div>
+                <div class="order-info-row" v-if="order.payment_status">
+                  <span class="info-label">Статус оплаты:</span>
+                  <span class="info-value" :class="getPaymentStatusClass(order.payment_status.name)">
+                    {{ order.payment_status.name }}
+                  </span>
+                </div>
+                <div class="order-info-row" v-if="order.fulfillment_status">
+                  <span class="info-label">Статус выдачи:</span>
+                  <span class="info-value" :class="getFulfillmentStatusClass(order.fulfillment_status.name)">
+                    {{ order.fulfillment_status.name }}
+                  </span>
                 </div>
               </div>
 
@@ -88,8 +100,8 @@
           <div class="modal-body">
             <div class="modal-header-section">
               <h2 class="modal-title">Заказ #{{ selectedOrder.id }}</h2>
-              <div class="order-status-badge" :class="`status-${selectedOrder.status.name}`">
-                {{ selectedOrder.status.description }}
+              <div class="order-status-badge" :class="`status-${selectedOrder.status?.name || 'pending'}`">
+                {{ selectedOrder.status?.description || 'В обработке' }}
               </div>
             </div>
 
@@ -102,14 +114,6 @@
                   <span class="detail-value">{{ selectedOrder.cabinet.personal_number }}</span>
                 </div> -->
                 <div class="detail-row">
-                  <span class="detail-label">Участник:</span>
-                  <span class="detail-value">{{ formatParticipantName(selectedOrder.cabinet.participant) }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Email:</span>
-                  <span class="detail-value">{{ selectedOrder.cabinet.participant.email }}</span>
-                </div>
-                <div class="detail-row">
                   <span class="detail-label">Дата заказа:</span>
                   <span class="detail-value">{{ formatDate(selectedOrder.order_date) }}</span>
                 </div>
@@ -117,9 +121,25 @@
                   <span class="detail-label">Дата доставки:</span>
                   <span class="detail-value">{{ formatDate(selectedOrder.delivery_date) }}</span>
                 </div>
-                <div class="detail-row">
+                <div class="detail-row" v-if="selectedOrder.delivery_method">
                   <span class="detail-label">Способ доставки:</span>
                   <span class="detail-value">{{ selectedOrder.delivery_method.description }}</span>
+                </div>
+                <div class="detail-row" v-if="selectedOrder.payment_method">
+                  <span class="detail-label">Способ оплаты:</span>
+                  <span class="detail-value">{{ selectedOrder.payment_method.name }}</span>
+                </div>
+                <div class="detail-row" v-if="selectedOrder.payment_status">
+                  <span class="detail-label">Статус оплаты:</span>
+                  <span class="detail-value" :class="getPaymentStatusClass(selectedOrder.payment_status.name)">
+                    {{ selectedOrder.payment_status.name }}
+                  </span>
+                </div>
+                <div class="detail-row" v-if="selectedOrder.fulfillment_status">
+                  <span class="detail-label">Статус выдачи:</span>
+                  <span class="detail-value" :class="getFulfillmentStatusClass(selectedOrder.fulfillment_status.name)">
+                    {{ selectedOrder.fulfillment_status.name }}
+                  </span>
                 </div>
                 <div class="detail-row" v-if="selectedOrder.shipping_address">
                   <span class="detail-label">Адрес доставки:</span>
@@ -134,32 +154,43 @@
               <!-- Order Items -->
               <div class="detail-section">
                 <h3 class="section-title">Товары</h3>
-                <div class="items-list">
-                  <div 
-                    v-for="item in selectedOrder.items" 
-                    :key="item.id"
-                    class="item-card"
-                  >
-                    <div class="item-info">
-                      <div class="item-name">{{ item.product.name }}</div>
-                      <div class="item-sku">{{ item.product.sku }}</div>
-                      <div class="item-description">{{ item.product.description }}</div>
-                    </div>
-                    <div class="item-details">
-                      <div class="item-quantity">
-                        <span class="quantity-label">Количество:</span>
-                        <span class="quantity-value">{{ item.quantity }} шт</span>
-                      </div>
-                      <div class="item-price">
-                        <span class="price-label">Цена за шт:</span>
-                        <span class="price-value">${{ item.unit_price }}</span>
-                      </div>
-                      <div class="item-total">
-                        <span class="total-label">Итого:</span>
-                        <span class="total-value">${{ item.total_price }}</span>
-                      </div>
-                    </div>
-                  </div>
+                <div class="items-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Изображение</th>
+                        <th>Название</th>
+                        <th>Заказано</th>
+                        <th>Выдано</th>
+                        <th>Цена</th>
+                        <th>Итого</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="item in selectedOrder.items" :key="item.id">
+                        <td class="item-image-cell">
+                          <div class="item-image">
+                            <img 
+                              v-if="item.product.images && item.product.images.length > 0" 
+                              :src="item.product.images[0].src" 
+                              :alt="item.product.name"
+                            />
+                            <div v-else class="no-image">
+                              <i class="bi bi-image"></i>
+                            </div>
+                          </div>
+                        </td>
+                        <td class="item-name-cell">
+                          <div class="item-name">{{ item.product.name }}</div>
+                          <div class="item-sku">{{ item.product.sku }}</div>
+                        </td>
+                        <td class="item-quantity-cell">{{ item.quantity }} шт</td>
+                        <td class="item-quantity-cell">{{ item.issued_quantity }} шт</td>
+                        <td class="item-price-cell">${{ item.unit_price }}</td>
+                        <td class="item-total-cell">${{ item.total_price }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
@@ -311,6 +342,22 @@ const formatDate = (dateString) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+const getPaymentStatusClass = (statusName) => {
+  if (!statusName) return ''
+  if (statusName.includes('Оплачено') || statusName.includes('оплачено')) {
+    return 'status-paid'
+  }
+  return 'status-unpaid'
+}
+
+const getFulfillmentStatusClass = (statusName) => {
+  if (!statusName) return ''
+  if (statusName.includes('Выдано') || statusName.includes('выдано')) {
+    return 'status-fulfilled'
+  }
+  return 'status-not-fulfilled'
 }
 
 onMounted(() => {
@@ -504,6 +551,26 @@ onMounted(() => {
   color: #842029;
 }
 
+.status-paid {
+  color: #28a745;
+  font-weight: 700;
+}
+
+.status-unpaid {
+  color: #dc3545;
+  font-weight: 700;
+}
+
+.status-fulfilled {
+  color: #28a745;
+  font-weight: 700;
+}
+
+.status-not-fulfilled {
+  color: #ffc107;
+  font-weight: 700;
+}
+
 .order-body {
   display: flex;
   flex-direction: column;
@@ -694,27 +761,86 @@ onMounted(() => {
   text-align: right;
 }
 
-/* Items List */
-.items-list {
+/* Items Table */
+.items-table {
+  overflow-x: auto;
+}
+
+.items-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.items-table thead {
+  background: #f8f9fa;
+}
+
+.items-table th {
+  padding: 0.75rem;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  color: #495057;
+  text-transform: uppercase;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.items-table tbody tr {
+  border-bottom: 1px solid #e9ecef;
+  transition: background 0.2s ease;
+}
+
+.items-table tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.items-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.items-table td {
+  padding: 0.75rem;
+  vertical-align: middle;
+}
+
+.item-image-cell {
+  width: 80px;
+}
+
+.item-image {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f8f9fa;
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  align-items: center;
+  justify-content: center;
 }
 
-.item-card {
-  background: white;
-  border-radius: 12px;
-  padding: 1rem;
-  border: 2px solid #e9ecef;
+.item-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.item-info {
-  margin-bottom: 0.75rem;
+.no-image {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6c757d;
+  font-size: 24px;
+}
+
+.item-name-cell {
+  min-width: 200px;
 }
 
 .item-name {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 600;
   color: #1a1a1a;
   margin-bottom: 0.25rem;
 }
@@ -722,49 +848,27 @@ onMounted(() => {
 .item-sku {
   font-size: 12px;
   color: #6c757d;
-  margin-bottom: 0.5rem;
 }
 
-.item-description {
-  font-size: 13px;
+.item-quantity-cell {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
   color: #495057;
 }
 
-.item-details {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid #e9ecef;
-}
-
-.item-quantity,
-.item-price,
-.item-total {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.quantity-label,
-.price-label,
-.total-label {
-  font-size: 11px;
-  color: #6c757d;
-  text-transform: uppercase;
-}
-
-.quantity-value,
-.price-value {
+.item-price-cell {
+  text-align: right;
   font-size: 14px;
-  color: #1a1a1a;
   font-weight: 600;
+  color: #495057;
 }
 
-.total-value {
+.item-total-cell {
+  text-align: right;
   font-size: 16px;
-  color: #28a745;
   font-weight: 700;
+  color: #28a745;
 }
 
 /* Total Section */

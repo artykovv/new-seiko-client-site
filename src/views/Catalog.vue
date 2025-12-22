@@ -65,7 +65,7 @@
 
             <div class="modal-info">
               <h2 class="modal-title">{{ selectedProduct.name }}</h2>
-              <p class="modal-sku">Артикул: {{ selectedProduct.sku }}</p>
+              <p class="modal-sku">{{ selectedProduct.sku }}</p>
 
               <div class="modal-description">
                 <h3 class="section-title">Описание</h3>

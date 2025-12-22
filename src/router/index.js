@@ -83,6 +83,23 @@ const routes = [
             title: 'Санкции'
         },
         component: () => import('../views/Sanctions.vue')
+    },
+    {
+        path: '/upgrade',
+        name: 'upgrade',
+        meta: {
+            title: 'Апгрейд пакета'
+        },
+        component: () => import('../views/Upgrade.vue')
+    },
+    {
+        path: '/:pathMatch(.*)*',
+        name: 'not-found',
+        meta: {
+            title: 'Страница не найдена',
+            public: true
+        },
+        component: () => import('../views/NotFound.vue')
     }
 ]
 

@@ -46,13 +46,14 @@
               v-for="bonus in bonuses" 
               :key="bonus.id"
               class="bonus-card"
+              :class="{ 'issued': bonus.issued }"
             >
               <div class="bonus-header">
                 <div class="bonus-type">
                   <i :class="getCurrentTabIcon()"></i>
                   {{ getCurrentTabLabel() }}
                 </div>
-                <div class="bonus-amount">+${{ bonus.amount }}</div>
+                <div class="bonus-amount">+${{ bonus.bonus_amount || '0.00' }}</div>
               </div>
 
               <div class="bonus-body">
@@ -60,17 +61,23 @@
                   <span class="info-label">Кабинет:</span>
                   <span class="info-value">{{ bonus.cabinet?.personal_number || '-' }}</span>
                 </div>
-                <div class="bonus-info-row" v-if="bonus.participant">
+                <div class="bonus-info-row" v-if="bonus.cabinet?.participant">
                   <span class="info-label">Участник:</span>
-                  <span class="info-value">{{ formatParticipantName(bonus.participant) }}</span>
+                  <span class="info-value">{{ formatParticipantName(bonus.cabinet.participant) }}</span>
+                </div>
+                <div class="bonus-info-row">
+                  <span class="info-label">Статус:</span>
+                  <span class="info-value" :class="bonus.issued ? 'status-issued' : 'status-pending'">
+                    {{ bonus.issued ? 'Выдан' : 'Ожидает' }}
+                  </span>
                 </div>
                 <div class="bonus-info-row">
                   <span class="info-label">Дата:</span>
-                  <span class="info-value">{{ formatDate(bonus.created_at) }}</span>
+                  <span class="info-value">{{ formatDate(bonus.issued ? bonus.issued_at : bonus.created_at) }}</span>
                 </div>
-                <div class="bonus-info-row" v-if="bonus.description">
-                  <span class="info-label">Описание:</span>
-                  <span class="info-value">{{ bonus.description }}</span>
+                <div class="bonus-info-row" v-if="activeTab === 'binary'">
+                  <span class="info-label">Период:</span>
+                  <span class="info-value">{{ bonus.period || '-' }}</span>
                 </div>
               </div>
             </div>
@@ -109,11 +116,8 @@ import MenuModal from '../components/MenuModal.vue'
 import { BACKEND_API_URL } from '../config'
 
 const showMenu = ref(false)
-const loadingCabinets = ref(false)
 const loadingBonuses = ref(false)
-const cabinets = ref([])
 const bonuses = ref([])
-const selectedCabinetId = ref(null)
 const activeTab = ref('binary')
 const currentPage = ref(1)
 const totalPages = ref(1)
@@ -127,41 +131,6 @@ const bonusTabs = [
   { type: 'sponsor', label: 'Спонсорские', icon: 'bi bi-person-plus' },
   { type: 'status', label: 'Статусные', icon: 'bi bi-star' }
 ]
-
-const fetchCabinets = async () => {
-  loadingCabinets.value = true
-  
-  try {
-    const token = localStorage.getItem('access_token')
-    if (!token) {
-      console.error('Token not found')
-      return
-    }
-
-    const response = await fetch(
-      `${BACKEND_API_URL}/api/cabinets/?page=1&page_size=1`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'accept': 'application/json'
-        }
-      }
-    )
-
-    if (response.ok) {
-      const data = await response.json()
-      cabinets.value = data.cabinets || []
-      // Автоматически выбрать первый кабинет
-      if (cabinets.value.length > 0) {
-        selectedCabinetId.value = cabinets.value[0].id
-      }
-    }
-  } catch (err) {
-    console.error('Error fetching cabinets:', err)
-  } finally {
-    loadingCabinets.value = false
-  }
-}
 
 const fetchBonuses = async () => {
   loadingBonuses.value = true
@@ -177,10 +146,6 @@ const fetchBonuses = async () => {
       page: currentPage.value.toString(),
       page_size: pageSize.toString()
     })
-
-    if (selectedCabinetId.value) {
-      params.append('cabinet_id', selectedCabinetId.value)
-    }
 
     const response = await fetch(
       `${BACKEND_API_URL}/api/bonuses/${activeTab.value}?${params.toString()}`,
@@ -256,7 +221,6 @@ const formatDate = (dateString) => {
 }
 
 onMounted(async () => {
-  await fetchCabinets()
   await fetchBonuses()
 })
 </script>
@@ -491,6 +455,20 @@ onMounted(async () => {
   color: #1a1a1a;
   font-weight: 600;
   text-align: right;
+}
+
+.status-issued {
+  color: #28a745 !important;
+  font-weight: 700 !important;
+}
+
+.status-pending {
+  color: #ffc107 !important;
+  font-weight: 700 !important;
+}
+
+.bonus-card.issued {
+  border-left: 4px solid #28a745;
 }
 
 /* Pagination */

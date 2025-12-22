@@ -21,8 +21,45 @@
             <div class="user-details">
               <h1 class="user-name">{{ formatUserName() }}</h1>
               <p class="user-email">{{ userData.email }}</p>
+              
+              <!-- Personal Number - Clickable -->
+              <button 
+                v-if="cabinetData.personal_number" 
+                class="personal-number-btn"
+                @click="copyPersonalNumber"
+                :title="'Нажмите, чтобы скопировать'"
+              >
+                <span>{{ cabinetData.personal_number }}</span>
+                <i class="bi bi-clipboard"></i>
+              </button>
+              
+              <!-- Status Name -->
+              <div class="user-status" v-if="cabinetData.status_name">
+                <i class="bi bi-star-fill"></i>
+                <span>{{ cabinetData.status_name }}</span>
+              </div>
+
+              <!-- Package Name with Upgrade Button -->
+              <div class="user-package" v-if="cabinetData.paket_name">
+                <div class="package-info">
+                  <i class="bi bi-box-seam"></i>
+                  <span>{{ cabinetData.paket_name }}</span>
+                </div>
+                <button class="upgrade-btn" @click="goToUpgrade">
+                  <i class="bi bi-arrow-up-circle"></i>
+                  <span>Upgrade</span>
+                </button>
+              </div>
             </div>
           </div>
+
+          <!-- Copy Success Notification -->
+          <transition name="fade">
+            <div v-if="showCopyNotification" class="copy-notification">
+              <i class="bi bi-check-circle-fill"></i>
+              <span>Успешно скопировано</span>
+            </div>
+          </transition>
 
           <!-- Turnover Section -->
           <div class="stats-section">
@@ -182,10 +219,12 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import PageHeader from '../components/PageHeader.vue'
 import MenuModal from '../components/MenuModal.vue'
 import { BACKEND_API_URL } from '../config'
 
+const router = useRouter()
 const showMenu = ref(false)
 const loading = ref(false)
 const loadingBonuses = ref(false)
@@ -196,6 +235,11 @@ const userData = ref({
   email: ''
 })
 const cabinetData = ref({
+  id: '',
+  personal_number: '',
+  status_name: '',
+  paket_id: null,
+  paket_name: '',
   left_turnover_all_time: '0',
   right_turnover_all_time: '0',
   left_turnover_current_month: '0',
@@ -211,6 +255,8 @@ const bonusesSummary = ref({
   status_sum: 0,
   total_sum: 0
 })
+
+const showCopyNotification = ref(false)
 
 // Generate available months from 2024-12 to current month
 const availableMonths = computed(() => {
@@ -298,6 +344,11 @@ const fetchCabinetData = async () => {
         if (cabinetResponse.ok) {
           const data = await cabinetResponse.json()
           cabinetData.value = {
+            id: data.id || '',
+            personal_number: data.personal_number || '',
+            status_name: data.status_name || '',
+            paket_id: data.paket_id || null,
+            paket_name: data.paket_name || '',
             left_turnover_all_time: data.left_turnover_all_time || '0',
             right_turnover_all_time: data.right_turnover_all_time || '0',
             left_turnover_current_month: data.left_turnover_current_month || '0',
@@ -364,9 +415,31 @@ const onMonthChange = () => {
   fetchBonusesSummary()
 }
 
+const copyPersonalNumber = async () => {
+  try {
+    // Create referral link with sponsor_id
+    const baseUrl = window.location.origin
+    const referralLink = `${baseUrl}/register?sponsor_id=${cabinetData.value.id}`
+    
+    await navigator.clipboard.writeText(referralLink)
+    showCopyNotification.value = true
+    
+    // Hide notification after 2 seconds
+    setTimeout(() => {
+      showCopyNotification.value = false
+    }, 2000)
+  } catch (err) {
+    console.error('Failed to copy:', err)
+  }
+}
+
 const formatUserName = () => {
   const { lastname, name, patronymic } = userData.value
   return `${lastname || ''} ${name || ''} ${patronymic || ''}`.trim() || 'Пользователь'
+}
+
+const goToUpgrade = () => {
+  router.push('/upgrade')
 }
 
 onMounted(async () => {
@@ -403,6 +476,7 @@ onMounted(async () => {
 /* Main Content */
 .home-main {
   padding: 2rem 1.5rem;
+  overflow: visible;
 }
 
 /* Loading State */
@@ -457,19 +531,172 @@ onMounted(async () => {
 
 .user-details {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
 .user-name {
   font-size: 28px;
   font-weight: 700;
   color: #1a1a1a;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .user-email {
   font-size: 16px;
   color: #6c757d;
-  margin: 0;
+  margin: 0 0 1rem 0;
+}
+
+.personal-number-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  padding: 0.875rem 1.5rem;
+  border-radius: 16px;
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 1rem;
+  letter-spacing: 1px;
+  width: fit-content;
+}
+
+.personal-number-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+}
+
+.personal-number-btn:active {
+  transform: translateY(0);
+}
+
+.personal-number-btn i:first-child {
+  font-size: 16px;
+}
+
+.personal-number-btn i:last-child {
+  font-size: 18px;
+  opacity: 0.9;
+}
+
+.user-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #856404;
+  width: fit-content;
+}
+
+.user-status i {
+  color: #ffc107;
+  font-size: 16px;
+}
+
+/* Package Info with Upgrade Button */
+.user-package {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.package-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #e7f3ff;
+  border: 1px solid #2196f3;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1976d2;
+}
+
+.package-info i {
+  color: #2196f3;
+  font-size: 16px;
+}
+
+.upgrade-btn {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  border: none;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.upgrade-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(67, 233, 123, 0.4);
+}
+
+.upgrade-btn:active {
+  transform: translateY(0);
+}
+
+.upgrade-btn i {
+  font-size: 16px;
+}
+
+/* Copy Notification */
+.copy-notification {
+  position: fixed;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #28a745;
+  color: white;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 15px;
+  font-weight: 600;
+  z-index: 9999;
+}
+
+.copy-notification i {
+  font-size: 20px;
+}
+
+/* Fade transition */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.fade-enter-from {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-10px);
+}
+
+.fade-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-10px);
 }
 
 /* Turnover Section */
@@ -568,43 +795,67 @@ onMounted(async () => {
 .bonuses-section {
   margin-bottom: 2rem;
   animation: fadeIn 0.6s ease-out 0.2s both;
+  overflow: visible;
 }
 
 .month-selector-card {
-  background: white;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.1) 100%);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 20px;
   padding: 1.5rem;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  overflow: visible;
+  position: relative;
 }
 
 .selector-label {
-  display: block;
   font-size: 14px;
   font-weight: 600;
-  color: #495057;
+  color: rgba(255, 255, 255, 0.9);
   margin-bottom: 0.75rem;
+  display: block;
 }
 
 .month-select {
   width: 100%;
   padding: 0.875rem 1rem;
-  border: 2px solid #e9ecef;
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.2);
   border-radius: 12px;
+  color: white;
   font-size: 15px;
-  font-weight: 500;
-  color: #495057;
-  background: white;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='white' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 16px;
+  padding-right: 3rem;
+}
+
+.month-select:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .month-select:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  background-color: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.1);
 }
 
+.month-select option {
+  background: #667eea;
+  color: white;
+  padding: 0.5rem;
+}
+
+/* Loading Bonuses */
 .loading-bonuses {
   display: flex;
   justify-content: center;

@@ -311,10 +311,12 @@
                   @input="handleSponsorSearch"
                   placeholder="Поиск спонсора по ФИО или номеру..."
                   autocomplete="off"
+                  :readonly="isReferralRegistration"
+                  :class="{ 'readonly-field': isReferralRegistration }"
                 />
                 
                 <div 
-                  v-if="showSponsorDropdown && (sponsorSearchResults.length > 0 || sponsorSearchLoading)"
+                  v-if="showSponsorDropdown && (sponsorSearchResults.length > 0 || sponsorSearchLoading) && !isReferralRegistration"
                   class="search-dropdown"
                 >
                   <div v-if="sponsorSearchLoading" class="dropdown-item text-center py-2">
@@ -342,7 +344,62 @@
                   </div>
                 </div>
               </div>
-              <small class="form-text">Необязательно</small>
+              <small class="form-text" v-if="!isReferralRegistration">Необязательно</small>
+              <small class="form-text text-success" v-else>
+                <i class="bi bi-lock-fill me-1"></i>Спонсор установлен по реферальной ссылке
+              </small>
+            </div>
+
+            <div class="form-group">
+              <label for="mentor_search" class="form-label">
+                <i class="bi bi-person-badge me-2"></i>Наставник
+              </label>
+              <div class="position-relative">
+                <input
+                  type="text"
+                  class="form-control"
+                  id="mentor_search"
+                  v-model="mentorSearchQuery"
+                  @input="handleMentorSearch"
+                  @focus="showMentorDropdown = availableMentorPositions.length > 0"
+                  placeholder="Поиск ментора по ФИО или номеру..."
+                  autocomplete="off"
+                  :disabled="!selectedSponsor"
+                  :class="{ 'readonly-field': !selectedSponsor }"
+                />
+                
+                <div 
+                  v-if="showMentorDropdown && mentorSearchResults.length > 0"
+                  class="search-dropdown"
+                >
+                  <div 
+                    v-for="position in mentorSearchResults" 
+                    :key="position.id"
+                    class="dropdown-item sponsor-item"
+                    @click="selectMentor(position)"
+                  >
+                    <div class="d-flex justify-content-between align-items-center">
+                      <div>
+                        <div class="fw-semibold">{{ formatMentorName(position) }}</div>
+                        <small class="text-muted">{{ position.personal_number }}</small>
+                      </div>
+                      <i class="bi bi-chevron-right text-muted"></i>
+                    </div>
+                  </div>
+                  <div v-if="mentorSearchResults.length === 0 && mentorSearchQuery.trim() && availableMentorPositions.length > 0" class="dropdown-item text-muted text-center py-2">
+                    Наставники не найдены
+                  </div>
+                </div>
+              </div>
+              <small class="form-text" v-if="!selectedSponsor">
+                <i class="bi bi-info-circle me-1"></i>Сначала выберите спонсора
+              </small>
+              <small class="form-text text-success" v-else-if="availableMentorPositions.length > 0">
+                <i class="bi bi-check-circle me-1"></i>Доступно {{ availableMentorPositions.length }} позиций
+              </small>
+              <small class="form-text text-muted" v-else>
+                Нет доступных позиций
+              </small>
             </div>
           </div>
 
@@ -462,6 +519,223 @@
             </div>
           </div>
 
+          <!-- Step 6: Payment Method -->
+          <div v-show="currentStep === 6" class="form-step">
+            <!-- Payment Method Selection -->
+            <div v-if="!showPhoneVerification && !showCodeVerification && !showSummary" class="payment-method-section">
+              <label class="form-label">
+                <i class="bi bi-credit-card me-2"></i>Способ оплаты
+              </label>
+              <div class="payment-methods-list">
+                <div 
+                  v-for="method in paymentMethods" 
+                  :key="method.id"
+                  class="payment-method-item"
+                  :class="{ 'selected': formData.order.payment_method_id === method.id }"
+                  @click="selectPaymentMethod(method.id)"
+                >
+                  <input
+                    type="radio"
+                    :id="`payment_${method.id}`"
+                    :value="method.id"
+                    v-model.number="formData.order.payment_method_id"
+                    class="payment-radio"
+                  />
+                  <label :for="`payment_${method.id}`" class="payment-label">
+                    <i class="bi bi-circle payment-icon-unchecked"></i>
+                    <i class="bi bi-check-circle-fill payment-icon-checked"></i>
+                    <span class="payment-name">{{ method.name }}</span>
+                    <span v-if="method.description" class="payment-description">{{ method.description }}</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Phone Verification for Mbank -->
+            <div v-if="showPhoneVerification && !showCodeVerification && !showSummary" class="verification-section">
+              <div class="selected-payment-info">
+                <span class="info-label">Способ оплаты:</span>
+                <span class="info-value">{{ getSelectedPaymentMethodName() }}</span>
+                <button 
+                  type="button" 
+                  class="btn-change"
+                  @click="changePaymentMethod"
+                  title="Изменить способ оплаты"
+                >
+                  <i class="bi bi-pencil"></i>
+                </button>
+              </div>
+              
+              <h5 class="verification-title">Введите номер телефона</h5>
+              <p class="verification-subtitle">Мы отправим на номер СМС c кодом подтверждения</p>
+              <div class="form-group">
+                <input
+                  type="tel"
+                  class="form-control"
+                  v-model="verificationPhone"
+                  placeholder="+996 Номер телефона"
+                  inputmode="numeric"
+                />
+              </div>
+            </div>
+
+            <!-- Code Verification for Mbank -->
+            <div v-if="showCodeVerification && !showSummary" class="verification-section">
+              <div class="selected-payment-info">
+                <span class="info-label">Способ оплаты:</span>
+                <span class="info-value">{{ getSelectedPaymentMethodName() }}</span>
+                <button 
+                  type="button" 
+                  class="btn-change"
+                  @click="changePaymentMethod"
+                  title="Изменить способ оплаты"
+                >
+                  <i class="bi bi-pencil"></i>
+                </button>
+              </div>
+
+              <div class="selected-payment-info">
+                <span class="info-label">Номер телефона:</span>
+                <span class="info-value">{{ verificationPhone }}</span>
+                <button 
+                  type="button" 
+                  class="btn-change"
+                  @click="changePhoneNumber"
+                  title="Изменить номер телефона"
+                >
+                  <i class="bi bi-pencil"></i>
+                </button>
+              </div>
+
+              <h5 class="verification-title">Введите код</h5>
+              <p class="verification-subtitle">
+                Мы отправили код подтверждения на номер {{ verificationPhone }}
+              </p>
+              <div class="form-group">
+                <input
+                  type="text"
+                  class="form-control code-input"
+                  v-model="verificationCode"
+                  placeholder="____"
+                  maxlength="4"
+                  inputmode="numeric"
+                />
+              </div>
+              <p class="timer-text" v-if="verificationTimer > 0">
+                Отправить новый код можно будет через {{ formatTimer(verificationTimer) }}
+              </p>
+              <button 
+                v-else
+                type="button"
+                class="btn btn-link"
+                @click="resendCode"
+              >
+                Отправить новый код
+              </button>
+            </div>
+
+            <!-- Summary View -->
+            <div v-if="showSummary" class="summary-view">
+              <h5 class="summary-title">
+                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                Проверьте данные регистрации
+              </h5>
+
+              <!-- Login Credentials -->
+              <div class="summary-section">
+                <h6 class="summary-section-title">
+                  <i class="bi bi-person-lock me-2"></i>Логин и пароль
+                </h6>
+                <div class="summary-item">
+                  <span class="summary-label">Email (логин):</span>
+                  <span class="summary-value">{{ formData.email }}</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-label">Пароль:</span>
+                  <span class="summary-value">{{ '•'.repeat(formData.password.length) }}</span>
+                </div>
+              </div>
+
+              <!-- Personal Info -->
+              <div class="summary-section">
+                <h6 class="summary-section-title">
+                  <i class="bi bi-person me-2"></i>Личные данные
+                </h6>
+                <div class="summary-item">
+                  <span class="summary-label">ФИО:</span>
+                  <span class="summary-value">{{ formData.lastname }} {{ formData.name }} {{ formData.patronymic }}</span>
+                </div>
+              </div>
+
+              <!-- Cabinet Info -->
+              <div class="summary-section">
+                <h6 class="summary-section-title">
+                  <i class="bi bi-briefcase me-2"></i>Кабинет
+                </h6>
+                <div class="summary-item">
+                  <span class="summary-label">Код кабинета:</span>
+                  <span class="summary-value">{{ formData.cabinet.code }}</span>
+                </div>
+                <div class="summary-item" v-if="selectedSponsor">
+                  <span class="summary-label">Спонсор:</span>
+                  <span class="summary-value">{{ formatCabinetName(selectedSponsor) }}</span>
+                </div>
+                <div class="summary-item" v-if="selectedMentor">
+                  <span class="summary-label">Наставник:</span>
+                  <span class="summary-value">{{ formatMentorName(selectedMentor) }}</span>
+                </div>
+              </div>
+
+              <!-- Package Info -->
+              <div class="summary-section">
+                <h6 class="summary-section-title">
+                  <i class="bi bi-box me-2"></i>Пакет
+                </h6>
+                <div class="summary-item">
+                  <span class="summary-label">Название:</span>
+                  <span class="summary-value">{{ selectedPackage?.name }}</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-label">Стоимость:</span>
+                  <span class="summary-value">${{ selectedPackage?.price }}</span>
+                </div>
+              </div>
+
+              <!-- Selected Products -->
+              <div class="summary-section">
+                <h6 class="summary-section-title">
+                  <i class="bi bi-cart me-2"></i>Выбранные товары
+                </h6>
+                <div v-for="item in selectedProducts" :key="item.id" class="summary-product">
+                  <div class="product-summary-info">
+                    <span class="product-summary-name">{{ getProductById(item.id)?.name }}</span>
+                    <span class="product-summary-qty">× {{ item.quantity }}</span>
+                  </div>
+                  <span class="product-summary-price">${{ (getProductPrice(getProductById(item.id)) * item.quantity).toFixed(2) }}</span>
+                </div>
+              </div>
+
+              <!-- Payment Info -->
+              <div class="summary-section">
+                <h6 class="summary-section-title">
+                  <i class="bi bi-credit-card me-2"></i>Оплата
+                </h6>
+                <div class="summary-item">
+                  <span class="summary-label">Способ оплаты:</span>
+                  <span class="summary-value">{{ getSelectedPaymentMethodName() }}</span>
+                </div>
+                <div class="summary-item total-item">
+                  <span class="summary-label">Итого (USD):</span>
+                  <span class="summary-value total-value">${{ selectedProductsTotal.toFixed(2) }}</span>
+                </div>
+                <div class="summary-item total-item">
+                  <span class="summary-label">Итого (сом):</span>
+                  <span class="summary-value total-value">{{ (selectedProductsTotal * 85).toFixed(2) }} сом</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Navigation Buttons -->
           <div class="form-navigation">
             <button
@@ -474,18 +748,52 @@
             </button>
 
             <button
-              v-if="currentStep < 5"
+              v-if="currentStep < 6"
               type="submit"
               class="btn btn-primary"
             >
               Далее<i class="bi bi-arrow-right ms-2"></i>
             </button>
 
+            <!-- Step 6: Payment Method Selection - Show Далее -->
             <button
-              v-if="currentStep === 5"
+              v-if="currentStep === 6 && !showPhoneVerification && !showCodeVerification && !showSummary"
+              type="button"
+              class="btn btn-primary"
+              @click="proceedToNextStep"
+              :disabled="!formData.order.payment_method_id"
+            >
+              Далее<i class="bi bi-arrow-right ms-2"></i>
+            </button>
+
+            <!-- Step 6: Phone Verification - Send Code -->
+            <button
+              v-if="currentStep === 6 && showPhoneVerification && !showCodeVerification && !showSummary"
+              type="button"
+              class="btn btn-primary"
+              @click="sendVerificationCode"
+              :disabled="!verificationPhone || verificationPhone.length < 10"
+            >
+              Далее<i class="bi bi-arrow-right ms-2"></i>
+            </button>
+
+            <!-- Step 6: Code Verification - Show Summary -->
+            <button
+              v-if="currentStep === 6 && showCodeVerification && !showSummary"
+              type="button"
+              class="btn btn-primary"
+              @click="proceedToSummary"
+              :disabled="verificationCode.length !== 4"
+            >
+              Далее<i class="bi bi-arrow-right ms-2"></i>
+            </button>
+
+            <!-- Step 6: Summary View - Complete Registration -->
+            <button
+              v-if="currentStep === 6 && showSummary"
               type="submit"
               class="btn btn-success"
-              :disabled="loading || selectedProducts.length === 0 || selectedProductsTotal < (selectedPackage?.price || 0)"
+              :disabled="loading"
             >
               <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
               <i v-else class="bi bi-check-circle me-2"></i>
@@ -510,20 +818,22 @@ import { BACKEND_API_URL } from '../config'
 
 const router = useRouter()
 
-const steps = ['Личные данные', 'Паспорт', 'Доп. инфо', 'Кабинет', 'Товары']
+const steps = ['Личные данные', 'Паспорт', 'Доп. инфо', 'Кабинет', 'Товары', 'Оплата']
 const stepTitles = [
   'Личная информация',
   'Паспортные данные',
   'Дополнительная информация',
   'Настройка кабинета',
-  'Выбор товаров'
+  'Выбор товаров',
+  'Способ оплаты'
 ]
 const stepSubtitles = [
   'Введите ваши основные данные',
   'Заполните паспортную информацию',
   'Укажите банковские данные',
   'Настройте ваш кабинет',
-  'Выберите товары минимум на сумму пакета (можно больше)'
+  'Выберите товары минимум на сумму пакета (можно больше)',
+  'Выберите способ оплаты и завершите регистрацию'
 ]
 
 const currentStep = ref(1)
@@ -536,6 +846,7 @@ const pakets = ref([])
 const branches = ref([])
 const products = ref([])
 const loadingProducts = ref(false)
+const paymentMethods = ref([])
 
 // Selected products for order
 const selectedProducts = ref([])
@@ -548,6 +859,28 @@ const sponsorSearchLoading = ref(false)
 const showSponsorDropdown = ref(false)
 const selectedSponsor = ref(null)
 let sponsorSearchTimeout = null
+
+// Referral registration flag
+const isReferralRegistration = ref(false)
+
+// Mentor search
+const mentorSearchQuery = ref('')
+const mentorSearchResults = ref([])
+const mentorSearchLoading = ref(false)
+const showMentorDropdown = ref(false)
+const selectedMentor = ref(null)
+let mentorSearchTimeout = null
+
+// Payment verification (for Mbank)
+const verificationPhone = ref('')
+const verificationCode = ref('')
+const showPhoneVerification = ref(false)
+const showCodeVerification = ref(false)
+const verificationTimer = ref(0)
+let verificationInterval = null
+
+// Summary view
+const showSummary = ref(false)
 
 const formData = ref({
   email: '',
@@ -570,12 +903,12 @@ const formData = ref({
     code: '',
     paket_id: null,
     branch_id: null,
-    sponsor_id: null
+    sponsor_id: null,
+    mentor_id: null
   },
   order: {
     items: [],
-    status_id: 1,
-    delivery_method_id: 1,
+    payment_method_id: null,
     shipping_address: '',
     notes: ''
   }
@@ -802,11 +1135,14 @@ const searchSponsors = async () => {
   }
 }
 
-const selectSponsor = (cabinet) => {
+const selectSponsor = async (cabinet) => {
   selectedSponsor.value = cabinet
   formData.value.cabinet.sponsor_id = cabinet.id
   sponsorSearchQuery.value = formatCabinetName(cabinet)
   showSponsorDropdown.value = false
+  
+  // Fetch available mentor positions when sponsor is selected
+  await fetchAvailableMentorPositions(cabinet.id)
 }
 
 const formatCabinetName = (cabinet) => {
@@ -824,7 +1160,258 @@ const formatCabinetName = (cabinet) => {
   return `${name} (${personalNumber})`
 }
 
+// Available mentor positions from sponsor's structure
+const availableMentorPositions = ref([])
+
+// Fetch available mentor positions based on sponsor
+const fetchAvailableMentorPositions = async (sponsorId) => {
+  if (!sponsorId) {
+    availableMentorPositions.value = []
+    mentorSearchResults.value = []
+    return
+  }
+  
+  try {
+    const response = await fetch(`${BACKEND_API_URL}/api/structure/find_free_positions/${sponsorId}`, {
+      headers: {
+        'accept': 'application/json'
+      }
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      availableMentorPositions.value = data.available_positions || []
+      // Initially show all available positions
+      mentorSearchResults.value = availableMentorPositions.value
+    } else {
+      availableMentorPositions.value = []
+      mentorSearchResults.value = []
+    }
+  } catch (err) {
+    console.error('Error fetching available mentor positions:', err)
+    availableMentorPositions.value = []
+    mentorSearchResults.value = []
+  }
+}
+
+// Mentor search - filter from available positions
+const handleMentorSearch = () => {
+  clearTimeout(mentorSearchTimeout)
+  
+  if (!mentorSearchQuery.value.trim()) {
+    // Show all available positions when search is empty
+    mentorSearchResults.value = availableMentorPositions.value
+    showMentorDropdown.value = false
+    return
+  }
+  
+  mentorSearchTimeout = setTimeout(() => {
+    searchMentors()
+  }, 300)
+}
+
+const searchMentors = () => {
+  const query = mentorSearchQuery.value.trim().toLowerCase()
+  
+  if (!query) {
+    mentorSearchResults.value = availableMentorPositions.value
+    return
+  }
+  
+  // Filter available positions by search query
+  mentorSearchResults.value = availableMentorPositions.value.filter(position => {
+    const fullName = `${position.lastname || ''} ${position.name || ''} ${position.patronymic || ''}`.toLowerCase()
+    const personalNumber = (position.personal_number || '').toLowerCase()
+    const code = (position.code || '').toLowerCase()
+    
+    return fullName.includes(query) || personalNumber.includes(query) || code.includes(query)
+  })
+  
+  showMentorDropdown.value = true
+}
+
+const selectMentor = (position) => {
+  selectedMentor.value = position
+  formData.value.cabinet.mentor_id = position.id
+  mentorSearchQuery.value = formatMentorName(position)
+  showMentorDropdown.value = false
+}
+
+// Format mentor name from position data
+const formatMentorName = (position) => {
+  if (!position) return '-'
+  
+  const parts = []
+  if (position.lastname) parts.push(position.lastname)
+  if (position.name) parts.push(position.name)
+  if (position.patronymic) parts.push(position.patronymic)
+  
+  const name = parts.length > 0 ? parts.join(' ') : '-'
+  const personalNumber = position.personal_number || '-'
+  
+  return `${name} (${personalNumber})`
+}
+
+// Fetch payment methods
+const fetchPaymentMethods = async () => {
+  try {
+    const response = await fetch(`${BACKEND_API_URL}/api/orders/payment-methods`, {
+      headers: {
+        'accept': 'application/json'
+      }
+    })
+    
+    if (response.ok) {
+      paymentMethods.value = await response.json()
+    }
+  } catch (err) {
+    console.error('Error fetching payment methods:', err)
+  }
+}
+
+// Handle payment method change
+const selectPaymentMethod = (methodId) => {
+  formData.value.order.payment_method_id = methodId
+  const selectedMethod = paymentMethods.value.find(m => m.id === methodId)
+  
+  // If Mbank is selected, show phone verification
+  if (selectedMethod && selectedMethod.name === 'Мбанк') {
+    showPhoneVerification.value = true
+    verificationPhone.value = '+996'
+  } else {
+    showPhoneVerification.value = false
+    showCodeVerification.value = false
+  }
+}
+
+// Get selected payment method name
+const getSelectedPaymentMethodName = () => {
+  const method = paymentMethods.value.find(m => m.id === formData.value.order.payment_method_id)
+  return method ? method.name : ''
+}
+
+// Change payment method (go back to selection)
+const changePaymentMethod = () => {
+  showPhoneVerification.value = false
+  showCodeVerification.value = false
+  verificationPhone.value = ''
+  verificationCode.value = ''
+  if (verificationInterval) {
+    clearInterval(verificationInterval)
+  }
+  verificationTimer.value = 0
+}
+
+// Change phone number (go back to phone input)
+const changePhoneNumber = () => {
+  showCodeVerification.value = false
+  showPhoneVerification.value = true
+  verificationCode.value = ''
+  if (verificationInterval) {
+    clearInterval(verificationInterval)
+  }
+  verificationTimer.value = 0
+}
+
+// Proceed to next step after payment method selection
+const proceedToNextStep = () => {
+  const selectedMethod = paymentMethods.value.find(m => m.id === formData.value.order.payment_method_id)
+  
+  // If Наличные (Cash), go directly to summary
+  if (selectedMethod && selectedMethod.name === 'Наличные') {
+    showSummary.value = true
+  }
+  // If Мбанк, phone verification is already shown by selectPaymentMethod
+}
+
+// Proceed to summary after code verification
+const proceedToSummary = () => {
+  showSummary.value = true
+}
+
+// Get product by ID
+const getProductById = (productId) => {
+  return products.value.find(p => p.id === productId)
+}
+
+// Send verification code
+const sendVerificationCode = () => {
+  // In a real app, this would call an API to send SMS
+  // For now, we'll just simulate it
+  showPhoneVerification.value = false
+  showCodeVerification.value = true
+  startVerificationTimer()
+}
+
+// Resend verification code
+const resendCode = () => {
+  // In a real app, this would call an API to resend SMS
+  startVerificationTimer()
+}
+
+// Start verification timer (31 seconds)
+const startVerificationTimer = () => {
+  verificationTimer.value = 31
+  
+  if (verificationInterval) {
+    clearInterval(verificationInterval)
+  }
+  
+  verificationInterval = setInterval(() => {
+    verificationTimer.value--
+    if (verificationTimer.value <= 0) {
+      clearInterval(verificationInterval)
+    }
+  }, 1000)
+}
+
+// Format timer display
+const formatTimer = (seconds) => {
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+}
+
 const previousStep = () => {
+  // If on step 6 and showing summary, go back to payment method selection
+  if (currentStep.value === 6 && showSummary.value) {
+    showSummary.value = false
+    
+    // If it was Mbank with verification, reset to payment selection
+    const selectedMethod = paymentMethods.value.find(m => m.id === formData.value.order.payment_method_id)
+    if (selectedMethod && selectedMethod.name === 'Мбанк') {
+      showPhoneVerification.value = false
+      showCodeVerification.value = false
+      verificationPhone.value = ''
+      verificationCode.value = ''
+      if (verificationInterval) {
+        clearInterval(verificationInterval)
+      }
+      verificationTimer.value = 0
+    }
+    return
+  }
+  
+  // If on step 6 and showing code verification, go back to phone input
+  if (currentStep.value === 6 && showCodeVerification.value) {
+    showCodeVerification.value = false
+    showPhoneVerification.value = true
+    verificationCode.value = ''
+    if (verificationInterval) {
+      clearInterval(verificationInterval)
+    }
+    verificationTimer.value = 0
+    return
+  }
+  
+  // If on step 6 and showing phone verification, go back to payment selection
+  if (currentStep.value === 6 && showPhoneVerification.value) {
+    showPhoneVerification.value = false
+    verificationPhone.value = ''
+    return
+  }
+  
+  // Normal step navigation
   if (currentStep.value > 1) {
     currentStep.value--
     error.value = ''
@@ -918,6 +1505,14 @@ const validateCurrentStep = () => {
     }
   }
   
+  // Step 6: Payment Method
+  if (currentStep.value === 6) {
+    if (!formData.value.order.payment_method_id) {
+      error.value = 'Пожалуйста, выберите способ оплаты'
+      return false
+    }
+  }
+  
   return true
 }
 
@@ -926,13 +1521,18 @@ const handleNext = async () => {
     return
   }
   
-  if (currentStep.value < 5) {
+  if (currentStep.value < 6) {
     currentStep.value++
     error.value = ''
     
     // Load products when entering step 5
     if (currentStep.value === 5 && products.value.length === 0) {
       await fetchProducts()
+    }
+    
+    // Load payment methods when entering step 6
+    if (currentStep.value === 6 && paymentMethods.value.length === 0) {
+      await fetchPaymentMethods()
     }
   } else {
     await handleSubmit()
@@ -994,10 +1594,54 @@ const handleSubmit = async () => {
   }
 }
 
-onMounted(() => {
+// Load sponsor by ID for referral registration
+const loadSponsorById = async (cabinetId) => {
+  try {
+    const response = await fetch(`${BACKEND_API_URL}/api/cabinets/search/?cabinet_id=${cabinetId}`, {
+      headers: {
+        'accept': 'application/json'
+      }
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      
+      // Extract cabinet from cabinets array
+      if (data.cabinets && data.cabinets.length > 0) {
+        const cabinet = data.cabinets[0]
+        selectedSponsor.value = cabinet
+        formData.value.cabinet.sponsor_id = cabinet.id
+        sponsorSearchQuery.value = formatCabinetName(cabinet)
+        
+        // Fetch available mentor positions for this sponsor
+        await fetchAvailableMentorPositions(cabinet.id)
+      } else {
+        console.error('Sponsor not found')
+        isReferralRegistration.value = false
+      }
+    } else {
+      console.error('Failed to load sponsor')
+      isReferralRegistration.value = false
+    }
+  } catch (err) {
+    console.error('Error loading sponsor:', err)
+    isReferralRegistration.value = false
+  }
+}
+
+onMounted(async () => {
   fetchPakets()
   fetchBranches()
   generateCabinetCode()
+  
+  // Check for referral sponsor_id in URL
+  const urlParams = new URLSearchParams(window.location.search)
+  const sponsorId = urlParams.get('sponsor_id')
+  
+  if (sponsorId) {
+    isReferralRegistration.value = true
+    await loadSponsorById(sponsorId)
+  }
 })
 </script>
 
@@ -1177,6 +1821,12 @@ textarea.form-control:focus,
   border-color: #667eea;
   box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
   outline: none;
+}
+
+.readonly-field {
+  background-color: #e9ecef !important;
+  cursor: not-allowed !important;
+  opacity: 0.7;
 }
 
 textarea.form-control {
@@ -1698,6 +2348,295 @@ textarea.form-control {
   align-items: center;
   font-size: 13px;
   padding: 0.75rem 1rem;
+}
+
+/* Payment Method Section Styles */
+.payment-method-section {
+  margin-bottom: 1.5rem;
+}
+
+.payment-methods-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.payment-method-item {
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.payment-method-item:hover {
+  background: #e9ecef;
+  border-color: #dee2e6;
+}
+
+.payment-method-item.selected {
+  background: rgba(102, 126, 234, 0.05);
+  border-color: #667eea;
+}
+
+.payment-radio {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.payment-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  margin: 0;
+  width: 100%;
+}
+
+.payment-icon-unchecked,
+.payment-icon-checked {
+  font-size: 20px;
+  transition: all 0.3s ease;
+}
+
+.payment-icon-unchecked {
+  color: #6c757d;
+}
+
+.payment-icon-checked {
+  color: #667eea;
+  display: none;
+}
+
+.payment-method-item.selected .payment-icon-unchecked {
+  display: none;
+}
+
+.payment-method-item.selected .payment-icon-checked {
+  display: inline;
+}
+
+.payment-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+  flex: 1;
+}
+
+.payment-description {
+  font-size: 13px;
+  color: #6c757d;
+}
+
+/* Verification Section Styles */
+.selected-payment-info {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.info-label {
+  font-size: 13px;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.info-value {
+  font-size: 15px;
+  color: #1a1a1a;
+  font-weight: 600;
+  flex: 1;
+}
+
+.btn-change {
+  background: transparent;
+  border: 1px solid #667eea;
+  color: #667eea;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.btn-change:hover {
+  background: #667eea;
+  color: white;
+}
+
+.btn-change i {
+  font-size: 14px;
+}
+
+/* Summary View Styles */
+.summary-view {
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.summary-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.summary-section {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.summary-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #495057;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid #e9ecef;
+  padding-bottom: 0.5rem;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.summary-item:last-child {
+  border-bottom: none;
+}
+
+.summary-label {
+  font-size: 13px;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.summary-value {
+  font-size: 14px;
+  color: #1a1a1a;
+  font-weight: 600;
+  text-align: right;
+}
+
+.summary-product {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.summary-product:last-child {
+  border-bottom: none;
+}
+
+.product-summary-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.product-summary-name {
+  font-size: 14px;
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.product-summary-qty {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.product-summary-price {
+  font-size: 14px;
+  color: #667eea;
+  font-weight: 700;
+}
+
+.total-item {
+  background: rgba(102, 126, 234, 0.05);
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-top: 0.5rem;
+}
+
+.total-value {
+  color: #667eea !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+}
+
+/* Verification Section Styles */
+.verification-section {
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.verification-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 0.5rem;
+}
+
+.verification-subtitle {
+  font-size: 14px;
+  color: #6c757d;
+  margin-bottom: 1.5rem;
+}
+
+.code-input {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  max-width: 200px;
+  margin: 0 auto;
+}
+
+.timer-text {
+  font-size: 13px;
+  color: #6c757d;
+  margin-top: 1rem;
+}
+
+.btn-link {
+  background: transparent;
+  border: none;
+  color: #667eea;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0.5rem 1rem;
+  font-size: 14px;
+}
+
+.btn-link:hover {
+  color: #764ba2;
 }
 
 /* Mobile optimizations */

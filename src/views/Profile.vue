@@ -41,15 +41,16 @@
               <!-- Name Fields -->
               <div class="form-section">
                 <h3 class="section-title">ФИО</h3>
+                <p class="section-hint">Данные ФИО нельзя изменить</p>
                 
                 <div class="form-group">
                   <label class="form-label">Фамилия</label>
                   <input 
                     type="text" 
                     v-model="formData.lastname"
-                    class="form-input"
+                    class="form-input readonly-input"
                     placeholder="Введите фамилию"
-                    required
+                    readonly
                   />
                 </div>
 
@@ -58,9 +59,9 @@
                   <input 
                     type="text" 
                     v-model="formData.name"
-                    class="form-input"
+                    class="form-input readonly-input"
                     placeholder="Введите имя"
-                    required
+                    readonly
                   />
                 </div>
 
@@ -69,8 +70,9 @@
                   <input 
                     type="text" 
                     v-model="formData.patronymic"
-                    class="form-input"
+                    class="form-input readonly-input"
                     placeholder="Введите отчество"
+                    readonly
                   />
                 </div>
               </div>
@@ -232,10 +234,8 @@ const updateProfile = async () => {
     }
 
     // Prepare data - only send password if it's filled
+    // Note: name fields are readonly and won't be updated
     const updateData = {
-      name: formData.value.name,
-      lastname: formData.value.lastname,
-      patronymic: formData.value.patronymic,
       email: formData.value.email
     }
 
@@ -488,6 +488,18 @@ onMounted(() => {
   outline: none;
   border-color: #667eea;
   box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+}
+
+.form-input.readonly-input {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
+  border-color: #dee2e6;
+}
+
+.form-input.readonly-input:focus {
+  border-color: #dee2e6;
+  box-shadow: none;
 }
 
 .form-hint {
