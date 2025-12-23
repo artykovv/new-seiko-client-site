@@ -26,7 +26,13 @@
             @click="openProductModal(product)"
           >
             <div class="product-image">
-              <div class="placeholder-image">
+              <img 
+                v-if="product.images && product.images.length > 0" 
+                :src="product.images[0].src" 
+                :alt="product.name"
+                class="product-img"
+              />
+              <div v-else class="placeholder-image">
                 <i class="bi bi-box-seam"></i>
               </div>
             </div>
@@ -58,7 +64,13 @@
 
           <div class="modal-body">
             <div class="modal-image">
-              <div class="placeholder-image-large">
+              <img 
+                v-if="selectedProduct.images && selectedProduct.images.length > 0" 
+                :src="selectedProduct.images[0].src" 
+                :alt="selectedProduct.name"
+                class="modal-img"
+              />
+              <div v-else class="placeholder-image-large">
                 <i class="bi bi-box-seam"></i>
               </div>
             </div>
@@ -256,6 +268,13 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+}
+
+.product-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .product-badge {
@@ -390,6 +409,14 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   min-height: 400px;
+  overflow: hidden;
+}
+
+.modal-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 16px;
 }
 
 .placeholder-image-large {
