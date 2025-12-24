@@ -448,6 +448,17 @@
                 class="product-card"
                 :class="{ 'selected': isProductSelected(product.id) }"
               >
+                <div class="product-image-container">
+                  <img 
+                    v-if="product.images && product.images.length > 0" 
+                    :src="product.images[0].src" 
+                    :alt="product.name"
+                    class="product-image"
+                  />
+                  <div v-else class="product-image-placeholder">
+                    <i class="bi bi-box-seam"></i>
+                  </div>
+                </div>
                 <div class="product-info">
                   <h6 class="product-name">{{ product.name }}</h6>
                   <p class="product-description">{{ product.description || product.sku || '-' }}</p>
@@ -573,9 +584,12 @@
                   type="tel"
                   class="form-control"
                   v-model="verificationPhone"
-                  placeholder="+996 Номер телефона"
+                  placeholder="996XXXXXXXXX"
                   inputmode="numeric"
+                  @input="validatePhoneInput"
+                  maxlength="12"
                 />
+                <small class="form-text">Введите номер без +, только цифры (например: 996702100400)</small>
               </div>
             </div>
 
@@ -584,27 +598,16 @@
               <div class="selected-payment-info">
                 <span class="info-label">Способ оплаты:</span>
                 <span class="info-value">{{ getSelectedPaymentMethodName() }}</span>
-                <button 
-                  type="button" 
-                  class="btn-change"
-                  @click="changePaymentMethod"
-                  title="Изменить способ оплаты"
-                >
-                  <i class="bi bi-pencil"></i>
-                </button>
               </div>
 
               <div class="selected-payment-info">
                 <span class="info-label">Номер телефона:</span>
                 <span class="info-value">{{ verificationPhone }}</span>
-                <button 
-                  type="button" 
-                  class="btn-change"
-                  @click="changePhoneNumber"
-                  title="Изменить номер телефона"
-                >
-                  <i class="bi bi-pencil"></i>
-                </button>
+              </div>
+
+              <div v-if="mbankDisplayName" class="selected-payment-info">
+                <span class="info-label">Владелец счета:</span>
+                <span class="info-value">{{ mbankDisplayName }}</span>
               </div>
 
               <h5 class="verification-title">Введите код</h5>
@@ -638,8 +641,37 @@
             <div v-if="showSummary" class="summary-view">
               <h5 class="summary-title">
                 <i class="bi bi-check-circle-fill text-success me-2"></i>
-                Проверьте данные регистрации
+                  Проверьте данные регистрации
               </h5>
+
+              <!-- Payment Status Message for Mbank -->
+              <div v-if="paymentStatusMessage" class="payment-status-alert" :class="{
+                'status-processing': paymentStatusPolling && !paymentStatusMessage.includes('успешно'),
+                'status-success': paymentStatusMessage.includes('успешно'),
+                'status-error': paymentStatusMessage.includes('неуспешна')
+              }">
+                <div class="status-icon">
+                  <span v-if="paymentStatusPolling && !paymentStatusMessage.includes('успешно')" class="spinner-border" role="status">
+                    <span class="visually-hidden">Загрузка...</span>
+                  </span>
+                  <i v-else-if="paymentStatusMessage.includes('успешно')" class="bi bi-check-circle-fill"></i>
+                  <i v-else-if="paymentStatusMessage.includes('неуспешна')" class="bi bi-x-circle-fill"></i>
+                  <i v-else class="bi bi-clock-history"></i>
+                </div>
+                <div class="status-content">
+                  <div class="status-title">
+                    <span v-if="paymentStatusPolling && !paymentStatusMessage.includes('успешно')">Обработка платежа</span>
+                    <span v-else-if="paymentStatusMessage.includes('успешно')">Оплата завершена</span>
+                    <span v-else-if="paymentStatusMessage.includes('неуспешна')">Ошибка оплаты</span>
+                    <span v-else>Проверка статуса</span>
+                  </div>
+                  <div class="status-message">
+                    <span v-if="paymentStatusPolling && !paymentStatusMessage.includes('успешно')">Пожалуйста, подождите. Транзакция обрабатывается...</span>
+                    <span v-else-if="paymentStatusMessage.includes('успешно')">Платеж успешно подтвержден. Вы можете войти в систему.</span>
+                    <span v-else>{{ paymentStatusMessage }}</span>
+                  </div>
+                </div>
+              </div>
 
               <!-- Login Credentials -->
               <div class="summary-section">
@@ -739,7 +771,7 @@
           <!-- Navigation Buttons -->
           <div class="form-navigation">
             <button
-              v-if="currentStep > 1"
+              v-if="currentStep > 1 && !showCodeVerification && !showSummary"
               type="button"
               class="btn btn-secondary"
               @click="previousStep"
@@ -772,32 +804,36 @@
               type="button"
               class="btn btn-primary"
               @click="sendVerificationCode"
-              :disabled="!verificationPhone || verificationPhone.length < 10"
+              :disabled="!verificationPhone || verificationPhone.length < 10 || mbankCheckLoading"
             >
-              Далее<i class="bi bi-arrow-right ms-2"></i>
+              <span v-if="mbankCheckLoading" class="spinner-border spinner-border-sm me-2"></span>
+              {{ mbankCheckLoading ? 'Проверка...' : 'Далее' }}<i v-if="!mbankCheckLoading" class="bi bi-arrow-right ms-2"></i>
             </button>
 
-            <!-- Step 6: Code Verification - Show Summary -->
+            <!-- Step 6: Code Verification - Confirm Payment -->
             <button
               v-if="currentStep === 6 && showCodeVerification && !showSummary"
               type="button"
-              class="btn btn-primary"
-              @click="proceedToSummary"
-              :disabled="verificationCode.length !== 4"
-            >
-              Далее<i class="bi bi-arrow-right ms-2"></i>
-            </button>
-
-            <!-- Step 6: Summary View - Complete Registration -->
-            <button
-              v-if="currentStep === 6 && showSummary"
-              type="submit"
               class="btn btn-success"
-              :disabled="loading"
+              @click="confirmPayment"
+              :disabled="verificationCode.length !== 4 || loading"
             >
               <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
               <i v-else class="bi bi-check-circle me-2"></i>
-              {{ loading ? 'Регистрация...' : 'Завершить регистрацию' }}
+              {{ loading ? 'Подтверждение...' : 'Подтвердить оплату' }}
+            </button>
+
+            <!-- Step 6: Summary View - Complete Registration or Login -->
+            <button
+              v-if="currentStep === 6 && showSummary && !paymentStatusPolling"
+              type="button"
+              class="btn btn-success"
+              :disabled="loading"
+              @click="handleSummaryAction"
+            >
+              <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
+              <i v-else class="bi bi-box-arrow-in-right me-2"></i>
+              {{ paymentId.value ? 'Войти' : (loading ? 'Регистрация...' : 'Завершить регистрацию') }}
             </button>
           </div>
         </form>
@@ -812,9 +848,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { BACKEND_API_URL } from '../config'
+import { BACKEND_API_URL, MB_API_URL } from '../config'
 
 const router = useRouter()
 
@@ -878,6 +914,13 @@ const showPhoneVerification = ref(false)
 const showCodeVerification = ref(false)
 const verificationTimer = ref(0)
 let verificationInterval = null
+const mbankDisplayName = ref('')
+const mbankCheckLoading = ref(false)
+const paymentId = ref('')
+const createdOrderId = ref(null)
+const paymentStatusPolling = ref(false)
+let pollingInterval = null
+const paymentStatusMessage = ref('')
 
 // Summary view
 const showSummary = ref(false)
@@ -1302,6 +1345,12 @@ const changePaymentMethod = () => {
   verificationTimer.value = 0
 }
 
+// Validate phone input - only digits
+const validatePhoneInput = () => {
+  // Remove all non-digit characters
+  verificationPhone.value = verificationPhone.value.replace(/\D/g, '')
+}
+
 // Change phone number (go back to phone input)
 const changePhoneNumber = () => {
   showCodeVerification.value = false
@@ -1334,19 +1383,314 @@ const getProductById = (productId) => {
   return products.value.find(p => p.id === productId)
 }
 
-// Send verification code
-const sendVerificationCode = () => {
-  // In a real app, this would call an API to send SMS
-  // For now, we'll just simulate it
-  showPhoneVerification.value = false
-  showCodeVerification.value = true
-  startVerificationTimer()
+// Handle summary action - either login (Mbank) or complete registration (Cash)
+const handleSummaryAction = () => {
+  // If payment was made via Mbank (paymentId exists), redirect to login
+  if (paymentId.value) {
+    router.push({
+      path: '/login',
+      query: { registered: 'true', paid: 'true' }
+    })
+  } else {
+    // For cash payment, complete registration
+    handleSubmit()
+  }
 }
 
-// Resend verification code
-const resendCode = () => {
-  // In a real app, this would call an API to resend SMS
-  startVerificationTimer()
+// Send verification code - first check if phone exists in Mbank
+const sendVerificationCode = async () => {
+  mbankCheckLoading.value = true
+  error.value = ''
+  
+  try {
+    // Clean phone number (already digits only from validation)
+    const cleanPhone = verificationPhone.value
+    
+    // Step 1: Check if phone exists in Mbank system
+    const checkResponse = await fetch(`${MB_API_URL}/api/payment/check`, {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        phone: cleanPhone
+      })
+    })
+    
+    const checkData = await checkResponse.json()
+    
+    if (!checkData.success) {
+      error.value = checkData.message || 'Плательщик не найден в системе'
+      mbankCheckLoading.value = false
+      return
+    }
+    
+    // Store displayName
+    mbankDisplayName.value = checkData.displayName || ''
+    
+    // Step 2: Create registration
+    const orderItems = selectedProducts.value.map(item => {
+      const product = products.value.find(p => p.id === item.id)
+      return {
+        product_id: item.id,
+        quantity: item.quantity,
+        unit_price: product ? getProductPrice(product) : 0
+      }
+    })
+
+    if (!formData.value.order.shipping_address) {
+      formData.value.order.shipping_address = 'Адрес не указан'
+    }
+
+    const payload = {
+      ...formData.value,
+      order: {
+        ...formData.value.order,
+        items: orderItems
+      }
+    }
+
+    const registerResponse = await fetch(`${BACKEND_API_URL}/api/participants/register`, {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    })
+
+    if (registerResponse.status !== 201) {
+      const errorData = await registerResponse.json()
+      throw new Error(errorData.detail || 'Ошибка регистрации')
+    }
+
+    const registrationData = await registerResponse.json()
+    createdOrderId.value = registrationData.order.id
+
+    // Step 3: Start Mbank payment
+    // Calculate amount: (total product amount * 85) * 100 = tyiyn
+    const amountTyiyn = Math.round(selectedProductsTotal.value * 85 * 100)
+    
+    const paymentResponse = await fetch(`${MB_API_URL}/api/payment/start`, {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        order_id: createdOrderId.value.toString(),
+        phone: cleanPhone,
+        amount_tyiyn: amountTyiyn,
+        comment: `Оплата заказа №${createdOrderId.value}`
+      })
+    })
+
+    const paymentData = await paymentResponse.json()
+    
+    if (!paymentData.payment_id) {
+      throw new Error(paymentData.message || 'Ошибка инициализации платежа')
+    }
+
+    // Store payment_id
+    paymentId.value = paymentData.payment_id
+    
+    // Start timer for OTP input
+    startVerificationTimer()
+    
+    // Proceed to code verification
+    showPhoneVerification.value = false
+    showCodeVerification.value = true
+    
+  } catch (err) {
+    console.error('Error in verification process:', err)
+    error.value = err.message || 'Ошибка при обработке запроса'
+  } finally {
+    mbankCheckLoading.value = false
+  }
+}
+
+// Resend verification code - restart payment to get new OTP
+const resendCode = async () => {
+  if (!createdOrderId.value) {
+    error.value = 'Ошибка: заказ не найден'
+    return
+  }
+  
+  loading.value = true
+  error.value = ''
+  
+  try {
+    const cleanPhone = verificationPhone.value
+    const amountTyiyn = Math.round(selectedProductsTotal.value * 85 * 100)
+    
+    const paymentResponse = await fetch(`${MB_API_URL}/api/payment/start`, {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        order_id: createdOrderId.value.toString(),
+        phone: cleanPhone,
+        amount_tyiyn: amountTyiyn,
+        comment: `Оплата заказа №${createdOrderId.value}`
+      })
+    })
+
+    const paymentData = await paymentResponse.json()
+    
+    if (!paymentData.payment_id) {
+      throw new Error(paymentData.message || 'Ошибка отправки нового кода')
+    }
+
+    // Update payment_id with new one
+    paymentId.value = paymentData.payment_id
+    
+    // Clear old code and restart timer
+    verificationCode.value = ''
+    startVerificationTimer()
+    
+  } catch (err) {
+    console.error('Error resending code:', err)
+    error.value = err.message || 'Ошибка отправки нового кода'
+  } finally {
+    loading.value = false
+  }
+}
+
+// Confirm payment with OTP
+const confirmPayment = async () => {
+  if (!paymentId.value || verificationCode.value.length !== 4) {
+    return
+  }
+  
+  loading.value = true
+  error.value = ''
+  
+  try {
+    const confirmResponse = await fetch(`${MB_API_URL}/api/payment/confirm`, {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        payment_id: paymentId.value,
+        otp: verificationCode.value
+      })
+    })
+    
+    const confirmData = await confirmResponse.json()
+    
+    // Check for errors
+    if (confirmData.code === 225) {
+      error.value = confirmData.message || 'Неверный код. Попробуйте ещё раз.'
+      verificationCode.value = ''
+      loading.value = false
+      return
+    }
+    
+    if (confirmData.code === 229) {
+      error.value = confirmData.message || 'Лимит попыток исчерпан. Нажмите \'Оплатить заново\' для нового кода.'
+      loading.value = false
+      return
+    }
+    
+    if (confirmData.detail) {
+      error.value = confirmData.detail
+      loading.value = false
+      return
+    }
+    
+    if (confirmData.code && confirmData.code !== 200) {
+      error.value = confirmData.message || 'Ошибка подтверждения'
+      loading.value = false
+      return
+    }
+    
+    // Success! OTP confirmed, now start polling payment status
+    showCodeVerification.value = false
+    showSummary.value = true
+    
+    // Start polling payment status
+    startPaymentStatusPolling()
+    
+  } catch (err) {
+    console.error('Error confirming payment:', err)
+    error.value = 'Ошибка подтверждения платежа'
+  } finally {
+    loading.value = false
+  }
+}
+
+// Check payment status
+const checkPaymentStatus = async () => {
+  if (!paymentId.value) {
+    return
+  }
+  
+  try {
+    const statusResponse = await fetch(`${MB_API_URL}/api/payment/status/${paymentId.value}`, {
+      method: 'GET',
+      headers: {
+        'accept': 'application/json'
+      }
+    })
+    
+    const statusData = await statusResponse.json()
+    
+    // Final statuses - stop polling
+    if (statusData.code === 330) {
+      // Success!
+      stopPaymentStatusPolling()
+      paymentStatusMessage.value = 'Оплата успешно завершена!'
+      error.value = ''
+      return
+    }
+    
+    if (statusData.code === 332 || statusData.code === 333) {
+      // Failed
+      stopPaymentStatusPolling()
+      paymentStatusMessage.value = ''
+      error.value = statusData.message || 'Транзакция неуспешна'
+      return
+    }
+    
+    // Intermediate statuses - continue polling (331, 101, -1, 227)
+    if ([331, 101, -1, 227].includes(statusData.code)) {
+      paymentStatusMessage.value = 'Транзакция в обработке...'
+      // Continue polling
+      return
+    }
+    
+  } catch (err) {
+    console.error('Error checking payment status:', err)
+    // Don't stop polling on network errors, just log
+  }
+}
+
+// Start polling payment status every 12 seconds
+const startPaymentStatusPolling = () => {
+  paymentStatusPolling.value = true
+  paymentStatusMessage.value = 'Проверка статуса платежа...'
+  
+  // Check immediately
+  checkPaymentStatus()
+  
+  // Then check every 12 seconds
+  pollingInterval = setInterval(() => {
+    checkPaymentStatus()
+  }, 12000) // 12 seconds
+}
+
+// Stop polling
+const stopPaymentStatusPolling = () => {
+  paymentStatusPolling.value = false
+  if (pollingInterval) {
+    clearInterval(pollingInterval)
+    pollingInterval = null
+  }
 }
 
 // Start verification timer (31 seconds)
@@ -1567,6 +1911,7 @@ const handleSubmit = async () => {
       }
     }
 
+    // Step 1: Create registration
     const response = await fetch(`${BACKEND_API_URL}/api/participants/register`, {
       method: 'POST',
       headers: {
@@ -1576,16 +1921,59 @@ const handleSubmit = async () => {
       body: JSON.stringify(payload)
     })
 
-    if (response.status === 201) {
-      // Success - redirect to login
+    if (response.status !== 201) {
+      const errorData = await response.json()
+      throw new Error(errorData.detail || 'Ошибка регистрации')
+    }
+
+    const registrationData = await response.json()
+    createdOrderId.value = registrationData.order.id
+
+    // Step 2: Check if Mbank payment is selected
+    const selectedMethod = paymentMethods.value.find(m => m.id === formData.value.order.payment_method_id)
+    
+    if (selectedMethod && selectedMethod.name === 'Мбанк') {
+      // Initiate Mbank payment
+      const cleanPhone = verificationPhone.value.replace(/[\s\-\(\)]/g, '')
+      const amountTyiyn = Math.round(selectedProductsTotal.value * 85 * 100) // USD to KGS to tyiyn
+      
+      const paymentResponse = await fetch(`${MB_API_URL}/api/payment/start`, {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          order_id: createdOrderId.value.toString(),
+          phone: cleanPhone,
+          amount_tyiyn: amountTyiyn,
+          comment: `Оплата заказа №${createdOrderId.value}`
+        })
+      })
+
+      const paymentData = await paymentResponse.json()
+      
+      if (!paymentData.payment_id) {
+        throw new Error('Ошибка инициализации платежа')
+      }
+
+      // Store payment_id for confirmation
+      paymentId.value = paymentData.payment_id
+      
+      // Start timer for OTP input
+      startVerificationTimer()
+      
+      // Show message about OTP
+      error.value = ''
+      
+    } else {
+      // For cash or other payment methods, redirect to login
       router.push({
         path: '/login',
         query: { registered: 'true' }
       })
-    } else {
-      const errorData = await response.json()
-      throw new Error(errorData.detail || 'Ошибка регистрации')
     }
+    
   } catch (e) {
     console.error('Registration error:', e)
     error.value = e.message || 'Ошибка регистрации. Пожалуйста, проверьте данные.'
@@ -1642,6 +2030,11 @@ onMounted(async () => {
     isReferralRegistration.value = true
     await loadSponsorById(sponsorId)
   }
+})
+
+onUnmounted(() => {
+  // Cleanup polling interval when component is destroyed
+  stopPaymentStatusPolling()
 })
 </script>
 
@@ -2001,7 +2394,7 @@ textarea.form-control {
 }
 
 .text-center {
-  text-center: center;
+  text-align: center;
 }
 
 .py-2 {
@@ -2085,7 +2478,7 @@ textarea.form-control {
   padding: 1rem;
   margin-bottom: 1rem;
   display: flex;
-  justify-content: space-between;
+  gap: 1rem;
   align-items: center;
   transition: all 0.3s ease;
 }
@@ -2095,8 +2488,37 @@ textarea.form-control {
   background: rgba(102, 126, 234, 0.05);
 }
 
+.product-image-container {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.product-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  color: rgba(102, 126, 234, 0.3);
+}
+
 .product-info {
   flex: 1;
+  min-width: 0;
 }
 
 .product-name {
@@ -2104,12 +2526,21 @@ textarea.form-control {
   font-weight: 600;
   color: #1a1a1a;
   margin-bottom: 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .product-description {
   font-size: 13px;
   color: #6c757d;
   margin-bottom: 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .product-price {
@@ -2498,6 +2929,95 @@ textarea.form-control {
   justify-content: center;
 }
 
+/* Payment Status Alert Styles */
+.payment-status-alert {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  min-height: 100px;
+  border: 2px solid;
+  transition: all 0.3s ease;
+}
+
+.payment-status-alert .status-icon {
+  flex-shrink: 0;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 28px;
+}
+
+.payment-status-alert .status-icon .spinner-border {
+  width: 40px;
+  height: 40px;
+  border-width: 4px;
+}
+
+.payment-status-alert .status-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.payment-status-alert .status-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.payment-status-alert .status-message {
+  font-size: 14px;
+  line-height: 1.5;
+  opacity: 0.9;
+}
+
+/* Processing State */
+.payment-status-alert.status-processing {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  border-color: #2196f3;
+  color: #0d47a1;
+}
+
+.payment-status-alert.status-processing .status-icon {
+  background: rgba(33, 150, 243, 0.15);
+  color: #2196f3;
+}
+
+.payment-status-alert.status-processing .spinner-border {
+  color: #2196f3;
+}
+
+/* Success State */
+.payment-status-alert.status-success {
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  border-color: #4caf50;
+  color: #1b5e20;
+}
+
+.payment-status-alert.status-success .status-icon {
+  background: rgba(76, 175, 80, 0.15);
+  color: #4caf50;
+}
+
+/* Error State */
+.payment-status-alert.status-error {
+  background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+  border-color: #f44336;
+  color: #b71c1c;
+}
+
+.payment-status-alert.status-error .status-icon {
+  background: rgba(244, 67, 54, 0.15);
+  color: #f44336;
+}
+
 .summary-section {
   background: #f8f9fa;
   border-radius: 12px;
@@ -2686,14 +3206,55 @@ textarea.form-control {
   }
 
   .product-card {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
+    padding: 0.75rem;
+    gap: 0.75rem;
+  }
+
+  .product-image-container {
+    width: 60px;
+    height: 60px;
+  }
+
+  .product-image-placeholder {
+    font-size: 24px;
+  }
+
+  .product-name {
+    font-size: 14px;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+
+  .product-description {
+    font-size: 12px;
+  }
+
+  .product-price {
+    font-size: 14px;
   }
 
   .product-actions {
-    width: 100%;
-    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .quantity-controls {
+    gap: 0.25rem;
+  }
+
+  .quantity-btn {
+    width: 28px;
+    height: 28px;
+  }
+
+  .quantity-value {
+    min-width: 25px;
+    font-size: 13px;
+  }
+
+  .add-product-btn,
+  .remove-product-btn {
+    width: 36px;
+    height: 36px;
   }
 }
 </style>
