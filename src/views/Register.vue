@@ -603,6 +603,14 @@
               <div class="selected-payment-info">
                 <span class="info-label">Номер телефона:</span>
                 <span class="info-value">{{ verificationPhone }}</span>
+                <button 
+                  type="button" 
+                  class="btn-change"
+                  @click="changePhoneNumber"
+                  title="Изменить номер телефона"
+                >
+                  <i class="bi bi-pencil"></i>
+                </button>
               </div>
 
               <div v-if="mbankDisplayName" class="selected-payment-info">
