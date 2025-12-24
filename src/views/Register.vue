@@ -1437,46 +1437,48 @@ const sendVerificationCode = async () => {
     // Store displayName
     mbankDisplayName.value = checkData.displayName || ''
     
-    // Step 2: Create registration
-    const orderItems = selectedProducts.value.map(item => {
-      const product = products.value.find(p => p.id === item.id)
-      return {
-        product_id: item.id,
-        quantity: item.quantity,
-        unit_price: product ? getProductPrice(product) : 0
+    // Step 2: Create registration (only if not already created)
+    if (!createdOrderId.value) {
+      const orderItems = selectedProducts.value.map(item => {
+        const product = products.value.find(p => p.id === item.id)
+        return {
+          product_id: item.id,
+          quantity: item.quantity,
+          unit_price: product ? getProductPrice(product) : 0
+        }
+      })
+
+      if (!formData.value.order.shipping_address) {
+        formData.value.order.shipping_address = 'Адрес не указан'
       }
-    })
 
-    if (!formData.value.order.shipping_address) {
-      formData.value.order.shipping_address = 'Адрес не указан'
-    }
-
-    const payload = {
-      ...formData.value,
-      order: {
-        ...formData.value.order,
-        items: orderItems
+      const payload = {
+        ...formData.value,
+        order: {
+          ...formData.value.order,
+          items: orderItems
+        }
       }
+
+      const registerResponse = await fetch(`${BACKEND_API_URL}/api/participants/register`, {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+
+      if (registerResponse.status !== 201) {
+        const errorData = await registerResponse.json()
+        throw new Error(errorData.detail || 'Ошибка регистрации')
+      }
+
+      const registrationData = await registerResponse.json()
+      createdOrderId.value = registrationData.order.id
     }
 
-    const registerResponse = await fetch(`${BACKEND_API_URL}/api/participants/register`, {
-      method: 'POST',
-      headers: {
-        'accept': 'application/json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    })
-
-    if (registerResponse.status !== 201) {
-      const errorData = await registerResponse.json()
-      throw new Error(errorData.detail || 'Ошибка регистрации')
-    }
-
-    const registrationData = await registerResponse.json()
-    createdOrderId.value = registrationData.order.id
-
-    // Step 3: Start Mbank payment
+    // Step 3: Start Mbank payment (always, even if changing phone)
     // Calculate amount: (total product amount * 85) * 100 = tyiyn
     const amountTyiyn = Math.round(selectedProductsTotal.value * 85 * 100)
     
