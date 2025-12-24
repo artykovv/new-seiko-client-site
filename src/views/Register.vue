@@ -112,7 +112,7 @@
                 class="form-control"
                 id="patronymic"
                 v-model="formData.patronymic"
-                placeholder="Иванович (необязательно)"
+                placeholder="Иванович"
               />
             </div>
           </div>
@@ -191,7 +191,7 @@
                 class="form-control"
                 id="phone_number"
                 v-model="formData.passport_info.phone_number"
-                placeholder="+996 XXX XXX XXX"
+                placeholder="996 XXX XXX XXX"
               />
             </div>
           </div>
@@ -344,7 +344,7 @@
                   </div>
                 </div>
               </div>
-              <small class="form-text" v-if="!isReferralRegistration">Необязательно</small>
+              <small class="form-text" v-if="!isReferralRegistration">Обязательно</small>
               <small class="form-text text-success" v-else>
                 <i class="bi bi-lock-fill me-1"></i>Спонсор установлен по реферальной ссылке
               </small>
@@ -1320,7 +1320,7 @@ const selectPaymentMethod = (methodId) => {
   // If Mbank is selected, show phone verification
   if (selectedMethod && selectedMethod.name === 'Мбанк') {
     showPhoneVerification.value = true
-    verificationPhone.value = '+996'
+    verificationPhone.value = '996'
   } else {
     showPhoneVerification.value = false
     showCodeVerification.value = false
