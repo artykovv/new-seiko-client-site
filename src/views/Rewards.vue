@@ -53,32 +53,124 @@
                   <i :class="getCurrentTabIcon()"></i>
                   {{ getCurrentTabLabel() }}
                 </div>
-                <div class="bonus-amount">+${{ bonus.bonus_amount || '0.00' }}</div>
+                <div class="bonus-amount">+{{ formatBonusAmount(bonus.bonus_amount) }}</div>
               </div>
 
               <div class="bonus-body">
-                <div class="bonus-info-row">
-                  <span class="info-label">Кабинет:</span>
-                  <span class="info-value">{{ bonus.cabinet?.personal_number || '-' }}</span>
-                </div>
-                <div class="bonus-info-row" v-if="bonus.cabinet?.participant">
-                  <span class="info-label">Участник:</span>
-                  <span class="info-value">{{ formatParticipantName(bonus.cabinet.participant) }}</span>
-                </div>
-                <div class="bonus-info-row">
-                  <span class="info-label">Статус:</span>
-                  <span class="info-value" :class="bonus.issued ? 'status-issued' : 'status-pending'">
-                    {{ bonus.issued ? 'Выдан' : 'Ожидает' }}
-                  </span>
-                </div>
-                <div class="bonus-info-row">
-                  <span class="info-label">Дата:</span>
-                  <span class="info-value">{{ formatDate(bonus.issued ? bonus.issued_at : bonus.created_at) }}</span>
-                </div>
-                <div class="bonus-info-row" v-if="activeTab === 'binary'">
-                  <span class="info-label">Период:</span>
-                  <span class="info-value">{{ bonus.period || '-' }}</span>
-                </div>
+                <!-- For Referral bonuses - show from_cabinet -->
+                <template v-if="activeTab === 'referral'">
+                  <div class="bonus-info-row">
+                    <span class="info-label">Сумма:</span>
+                    <span class="info-value bonus-amount-text">+{{ formatBonusAmount(bonus.bonus_amount) }}</span>
+                  </div>
+                  <div class="bonus-info-row" v-if="bonus.from_cabinet">
+                    <span class="info-label">От:</span>
+                    <span class="info-value">
+                      {{ formatParticipantName(bonus.from_cabinet.participant) }} 
+                      ({{ bonus.from_cabinet.personal_number }})
+                    </span>
+                  </div>
+                  <div class="bonus-info-row">
+                    <span class="info-label">Статус:</span>
+                    <span class="info-value" :class="bonus.issued ? 'status-issued' : 'status-pending'">
+                      {{ bonus.issued ? 'Выдано' : 'Не выдано' }}
+                    </span>
+                  </div>
+                  <div class="bonus-info-row">
+                    <span class="info-label">Дата:</span>
+                    <span class="info-value">{{ formatDate(bonus.created_at) }}</span>
+                  </div>
+                </template>
+
+                <!-- For Sponsor bonuses - show from_cabinet (same as referral) -->
+                <template v-else-if="activeTab === 'sponsor'">
+                  <div class="bonus-info-row">
+                    <span class="info-label">Сумма:</span>
+                    <span class="info-value bonus-amount-text">+{{ formatBonusAmount(bonus.bonus_amount) }}</span>
+                  </div>
+                  <div class="bonus-info-row" v-if="bonus.from_cabinet">
+                    <span class="info-label">От:</span>
+                    <span class="info-value">
+                      {{ formatParticipantName(bonus.from_cabinet.participant) }} 
+                      ({{ bonus.from_cabinet.personal_number }})
+                    </span>
+                  </div>
+                  <div class="bonus-info-row">
+                    <span class="info-label">Статус:</span>
+                    <span class="info-value" :class="bonus.issued ? 'status-issued' : 'status-pending'">
+                      {{ bonus.issued ? 'Выдано' : 'Не выдано' }}
+                    </span>
+                  </div>
+                  <div class="bonus-info-row">
+                    <span class="info-label">Дата:</span>
+                    <span class="info-value">{{ formatDate(bonus.created_at) }}</span>
+                  </div>
+                </template>
+
+                <!-- For Status bonuses - show only amount, status, date -->
+                <template v-else-if="activeTab === 'status'">
+                  <div class="bonus-info-row">
+                    <span class="info-label">Сумма:</span>
+                    <span class="info-value bonus-amount-text">+{{ formatBonusAmount(bonus.bonus_amount) }}</span>
+                  </div>
+                  <div class="bonus-info-row">
+                    <span class="info-label">Статус:</span>
+                    <span class="info-value" :class="bonus.issued ? 'status-issued' : 'status-pending'">
+                      {{ bonus.issued ? 'Выдано' : 'Не выдано' }}
+                    </span>
+                  </div>
+                  <div class="bonus-info-row">
+                    <span class="info-label">Дата:</span>
+                    <span class="info-value">{{ formatDate(bonus.created_at) }}</span>
+                  </div>
+                </template>
+
+                <!-- For Binary bonuses - show only amount, status, date -->
+                <template v-else-if="activeTab === 'binary'">
+                  <div class="bonus-info-row">
+                    <span class="info-label">Сумма:</span>
+                    <span class="info-value bonus-amount-text">+{{ formatBonusAmount(bonus.bonus_amount) }}</span>
+                  </div>
+                  <div class="bonus-info-row">
+                    <span class="info-label">Статус:</span>
+                    <span class="info-value" :class="bonus.issued ? 'status-issued' : 'status-pending'">
+                      {{ bonus.issued ? 'Выдано' : 'Не выдано' }}
+                    </span>
+                  </div>
+                  <div class="bonus-info-row">
+                    <span class="info-label">Дата:</span>
+                    <span class="info-value">{{ formatDate(bonus.created_at) }}</span>
+                  </div>
+                </template>
+
+                <!-- For Cheque bonuses - show from_cabinet and depth -->
+                <template v-else>
+                  <div class="bonus-info-row">
+                    <span class="info-label">Сумма:</span>
+                    <span class="info-value bonus-amount-text">+{{ formatBonusAmount(bonus.bonus_amount) }}</span>
+                  </div>
+                  <div class="bonus-info-row" v-if="bonus.from_cabinet">
+                    <span class="info-label">От:</span>
+                    <span class="info-value">
+                      {{ formatParticipantName(bonus.from_cabinet.participant) }} 
+                      ({{ bonus.from_cabinet.personal_number }})
+                    </span>
+                  </div>
+                  <div class="bonus-info-row" v-if="bonus.depth">
+                    <span class="info-label">Глубина:</span>
+                    <span class="info-value">{{ bonus.depth }}</span>
+                  </div>
+                  <div class="bonus-info-row">
+                    <span class="info-label">Статус:</span>
+                    <span class="info-value" :class="bonus.issued ? 'status-issued' : 'status-pending'">
+                      {{ bonus.issued ? 'Выдано' : 'Не выдано' }}
+                    </span>
+                  </div>
+                  <div class="bonus-info-row">
+                    <span class="info-label">Дата:</span>
+                    <span class="info-value">{{ formatDate(bonus.created_at) }}</span>
+                  </div>
+                </template>
               </div>
             </div>
           </div>
@@ -218,6 +310,17 @@ const formatDate = (dateString) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+const formatBonusAmount = (amount) => {
+  if (!amount) return '0'
+  const num = parseFloat(amount)
+  // If has decimal part, show as float with 2 decimals
+  if (num % 1 !== 0) {
+    return num.toFixed(2)
+  }
+  // Otherwise show as integer
+  return Math.floor(num).toString()
 }
 
 onMounted(async () => {
@@ -432,6 +535,12 @@ onMounted(async () => {
   font-size: 24px;
   font-weight: 700;
   color: #28a745;
+}
+
+.bonus-amount-text {
+  color: #28a745 !important;
+  font-weight: 700 !important;
+  font-size: 16px !important;
 }
 
 .bonus-body {

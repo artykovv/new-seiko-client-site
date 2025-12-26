@@ -45,10 +45,10 @@
                   <i class="bi bi-box-seam"></i>
                   <span>{{ cabinetData.paket_name }}</span>
                 </div>
-                <button class="upgrade-btn" @click="goToUpgrade">
+                <!-- <button class="upgrade-btn" @click="goToUpgrade">
                   <i class="bi bi-arrow-up-circle"></i>
                   <span>Upgrade</span>
-                </button>
+                </button> -->
               </div>
             </div>
           </div>
@@ -153,7 +153,7 @@
                   <i class="bi bi-diagram-3"></i>
                 </div>
                 <div class="bonus-info">
-                  <div class="bonus-value">${{ bonusesSummary.binary_sum.toFixed(2) }}</div>
+                <div class="bonus-value">${{ formatBonusAmount(bonusesSummary.binary_sum) }}</div>
                   <div class="bonus-label">Бинарные</div>
                 </div>
               </div>
@@ -163,7 +163,7 @@
                   <i class="bi bi-people"></i>
                 </div>
                 <div class="bonus-info">
-                  <div class="bonus-value">${{ bonusesSummary.referral_sum.toFixed(2) }}</div>
+                <div class="bonus-value">${{ formatBonusAmount(bonusesSummary.referral_sum) }}</div>
                   <div class="bonus-label">Реферальные</div>
                 </div>
               </div>
@@ -173,7 +173,7 @@
                   <i class="bi bi-receipt"></i>
                 </div>
                 <div class="bonus-info">
-                  <div class="bonus-value">${{ bonusesSummary.cheque_sum.toFixed(2) }}</div>
+                <div class="bonus-value">${{ formatBonusAmount(bonusesSummary.cheque_sum) }}</div>
                   <div class="bonus-label">Чековые</div>
                 </div>
               </div>
@@ -183,7 +183,7 @@
                   <i class="bi bi-person-plus"></i>
                 </div>
                 <div class="bonus-info">
-                  <div class="bonus-value">${{ bonusesSummary.sponsor_sum.toFixed(2) }}</div>
+                <div class="bonus-value">${{ formatBonusAmount(bonusesSummary.sponsor_sum) }}</div>
                   <div class="bonus-label">Спонсорские</div>
                 </div>
               </div>
@@ -193,7 +193,7 @@
                   <i class="bi bi-star"></i>
                 </div>
                 <div class="bonus-info">
-                  <div class="bonus-value">${{ bonusesSummary.status_sum.toFixed(2) }}</div>
+                <div class="bonus-value">${{ formatBonusAmount(bonusesSummary.status_sum) }}</div>
                   <div class="bonus-label">Статусные</div>
                 </div>
               </div>
@@ -203,8 +203,22 @@
                   <i class="bi bi-wallet2"></i>
                 </div>
                 <div class="bonus-info">
-                  <div class="bonus-value total-value">${{ bonusesSummary.total_sum.toFixed(2) }}</div>
+                <div class="bonus-value total-value">${{ formatBonusAmount(bonusesSummary.total_sum) }}</div>
                   <div class="bonus-label">Всего</div>
+                </div>
+              </div>
+
+              <!-- All Time Bonus Card -->
+              <div class="bonus-stat-card total all-time">
+                <div class="bonus-icon total-icon">
+                  <i class="bi bi-infinity"></i>
+                </div>
+                <div class="bonus-info">
+                  <div v-if="loadingAllTimeBonuses" class="bonus-value total-value">
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                  </div>
+                  <div v-else class="bonus-value total-value">${{ formatBonusAmount(allTimeBonuses) }}</div>
+                  <div class="bonus-label">За все время</div>
                 </div>
               </div>
             </div>
@@ -255,6 +269,8 @@ const bonusesSummary = ref({
   status_sum: 0,
   total_sum: 0
 })
+const loadingAllTimeBonuses = ref(false)
+const allTimeBonuses = ref('0')
 
 const showCopyNotification = ref(false)
 
@@ -411,6 +427,37 @@ const fetchBonusesSummary = async () => {
   }
 }
 
+const fetchAllTimeBonuses = async () => {
+  loadingAllTimeBonuses.value = true
+  
+  try {
+    const token = localStorage.getItem('access_token')
+    if (!token) return
+
+    const response = await fetch(
+      `${BACKEND_API_URL}/api/bonuses/total`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'accept': 'application/json'
+        }
+      }
+    )
+
+    if (response.ok) {
+      const data = await response.json()
+      allTimeBonuses.value = data.total_sum || '0'
+    } else {
+      allTimeBonuses.value = '0'
+    }
+  } catch (err) {
+    console.error('Error fetching all-time bonuses:', err)
+    allTimeBonuses.value = '0'
+  } finally {
+    loadingAllTimeBonuses.value = false
+  }
+}
+
 const onMonthChange = () => {
   fetchBonusesSummary()
 }
@@ -438,6 +485,17 @@ const formatUserName = () => {
   return `${lastname || ''} ${name || ''} ${patronymic || ''}`.trim() || 'Пользователь'
 }
 
+const formatBonusAmount = (amount) => {
+  if (!amount && amount !== 0) return '0'
+  const num = parseFloat(amount)
+  // If has decimal part, show with 2 decimals
+  if (num % 1 !== 0) {
+    return num.toFixed(2)
+  }
+  // Otherwise show as integer
+  return Math.floor(num).toString()
+}
+
 const goToUpgrade = () => {
   router.push('/upgrade')
 }
@@ -455,7 +513,8 @@ onMounted(async () => {
   await Promise.all([
     fetchUserData(),
     fetchCabinetData(),
-    fetchBonusesSummary()
+    fetchBonusesSummary(),
+    fetchAllTimeBonuses()
   ])
   
   loading.value = false
@@ -955,6 +1014,15 @@ onMounted(async () => {
 
 .bonus-stat-card.total .bonus-label {
   color: rgba(255, 255, 255, 0.9);
+}
+
+/* All Time Bonus Card - Navy Blue Gradient */
+.bonus-stat-card.total.all-time {
+  background: linear-gradient(135deg, #000080 0%, #0000CD 50%, #4169E1 100%);
+}
+
+.bonus-stat-card.total.all-time:hover {
+  background: linear-gradient(135deg, #0000CD 0%, #4169E1 50%, #1E90FF 100%);
 }
 
 /* Mobile optimizations */

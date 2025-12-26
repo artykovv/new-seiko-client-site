@@ -246,6 +246,16 @@
                   <span class="detail-label">Правый:</span>
                   <span class="detail-value turnover">${{ selectedCabinet.right_turnover_current_month }}</span>
                 </div>
+                <div class="detail-row binary-bonus-row">
+                  <span class="detail-label">Бинар:</span>
+                  <span v-if="loadingBinaryBonus" class="detail-value">
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                  </span>
+                  <span v-else-if="binaryBonus !== null" class="detail-value binary-bonus">
+                    {{ binaryBonus }}
+                  </span>
+                  <span v-else class="detail-value">-</span>
+                </div>
               </div>
 
               <div class="detail-section">
@@ -299,6 +309,8 @@ const structureData = ref(null)
 const selectedCabinet = ref(null)
 const ownCabinetId = ref(null)
 const navigationHistory = ref([])
+const loadingBinaryBonus = ref(false)
+const binaryBonus = ref(null)
 
 const canGoBack = computed(() => {
   return navigationHistory.value.length > 0 && 
@@ -403,13 +415,21 @@ const loadStructure = async (cabinetId, addToHistory = true) => {
 const showCabinetDetails = async (cabinetId) => {
   if (!cabinetId) return
   
+  // Open modal immediately
+  selectedCabinet.value = { id: cabinetId } // Temporary data
+  loadingBinaryBonus.value = true
+  binaryBonus.value = null
+  document.body.style.overflow = 'hidden'
+  
   try {
     const token = localStorage.getItem('access_token')
     if (!token) {
       console.error('Token not found')
+      closeCabinetModal()
       return
     }
 
+    // Fetch cabinet details
     const response = await fetch(
       `${BACKEND_API_URL}/api/cabinets/${cabinetId}`,
       {
@@ -422,15 +442,48 @@ const showCabinetDetails = async (cabinetId) => {
 
     if (response.ok) {
       selectedCabinet.value = await response.json()
-      document.body.style.overflow = 'hidden'
+      
+      // Fetch binary bonus asynchronously
+      fetchBinaryBonus(cabinetId, token)
+    } else {
+      closeCabinetModal()
     }
   } catch (err) {
     console.error('Error fetching cabinet details:', err)
+    closeCabinetModal()
+  }
+}
+
+const fetchBinaryBonus = async (cabinetId, token) => {
+  try {
+    const response = await fetch(
+      `${BACKEND_API_URL}/api/bonuses/binary/calculate/${cabinetId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'accept': 'application/json'
+        }
+      }
+    )
+
+    if (response.ok) {
+      const data = await response.json()
+      binaryBonus.value = data.total_bonus_to_pay || '0.00'
+    } else {
+      binaryBonus.value = null
+    }
+  } catch (err) {
+    console.error('Error fetching binary bonus:', err)
+    binaryBonus.value = null
+  } finally {
+    loadingBinaryBonus.value = false
   }
 }
 
 const closeCabinetModal = () => {
   selectedCabinet.value = null
+  binaryBonus.value = null
+  loadingBinaryBonus.value = false
   document.body.style.overflow = ''
 }
 
@@ -947,6 +1000,18 @@ onMounted(() => {
 
 .detail-value.turnover {
   color: #28a745;
+}
+
+.detail-value.binary-bonus {
+  color: #667eea;
+  font-weight: 700;
+}
+
+.binary-bonus-row .spinner-border-sm {
+  width: 1rem;
+  height: 1rem;
+  border-width: 0.15em;
+  color: #667eea;
 }
 
 .modal-actions {
