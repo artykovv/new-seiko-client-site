@@ -39,10 +39,16 @@
                 <span>{{ cabinetData.status_name }}</span>
               </div>
 
-              <!-- Package Name -->
-              <div class="package-info" v-if="cabinetData.paket_name">
-                <i class="bi bi-box-seam"></i>
-                <span>{{ cabinetData.paket_name }}</span>
+              <!-- Package Name with Upgrade Button -->
+              <div class="user-package" v-if="cabinetData.paket_name">
+                <div class="package-info">
+                  <i class="bi bi-box-seam"></i>
+                  <span>{{ cabinetData.paket_name }}</span>
+                </div>
+                <button class="upgrade-btn" @click="goToUpgrade">
+                  <i class="bi bi-arrow-up-circle"></i>
+                  <span>Upgrade</span>
+                </button>
               </div>
             </div>
           </div>
@@ -432,6 +438,11 @@ const formatUserName = () => {
   return `${lastname || ''} ${name || ''} ${patronymic || ''}`.trim() || 'Пользователь'
 }
 
+const goToUpgrade = () => {
+  router.push('/upgrade')
+}
+
+
 onMounted(async () => {
   loading.value = true
   
@@ -597,7 +608,14 @@ onMounted(async () => {
 }
 
 
-/* Package Info */
+/* Package Info with Upgrade Button */
+.user-package {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
 .package-info {
   display: flex;
   align-items: center;
@@ -609,13 +627,41 @@ onMounted(async () => {
   font-size: 14px;
   font-weight: 600;
   color: #1976d2;
-  width: fit-content;
 }
 
 .package-info i {
   color: #2196f3;
   font-size: 16px;
 }
+
+.upgrade-btn {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  border: none;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.upgrade-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(67, 233, 123, 0.4);
+}
+
+.upgrade-btn:active {
+  transform: translateY(0);
+}
+
+.upgrade-btn i {
+  font-size: 16px;
+}
+
 
 
 /* Copy Notification */

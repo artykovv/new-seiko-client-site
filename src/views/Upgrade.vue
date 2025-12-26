@@ -645,8 +645,8 @@ const sendVerificationCode = async () => {
       return
     }
     
-    // Store displayName
-    mbankDisplayName.value = checkData.displayName || ''
+    // Store displayName from data object
+    mbankDisplayName.value = checkData.data?.displayName || ''
     
     // Step 2: Create upgrade order (only if not already created)
     if (!createdOrderId.value) {
@@ -716,12 +716,12 @@ const sendVerificationCode = async () => {
 
     const paymentData = await paymentResponse.json()
     
-    if (!paymentData.payment_id) {
+    if (!paymentData.success) {
       throw new Error(paymentData.message || 'Ошибка инициализации платежа')
     }
 
-    // Store payment_id
-    paymentId.value = paymentData.payment_id
+    // Store payment_id from data object
+    paymentId.value = paymentData.data?.payment_id || ''
     
     // Start timer for OTP input
     startVerificationTimer()
@@ -768,12 +768,12 @@ const resendCode = async () => {
 
     const paymentData = await paymentResponse.json()
     
-    if (!paymentData.payment_id) {
+    if (!paymentData.success) {
       throw new Error(paymentData.message || 'Ошибка отправки нового кода')
     }
 
-    // Update payment_id with new one
-    paymentId.value = paymentData.payment_id
+    // Update payment_id with new one from data object
+    paymentId.value = paymentData.data?.payment_id || ''
     
     // Clear old code and restart timer
     verificationCode.value = ''
@@ -811,28 +811,15 @@ const confirmPayment = async () => {
     
     const confirmData = await confirmResponse.json()
     
-    // Check for errors
-    if (confirmData.code === 225) {
-      error.value = confirmData.message || 'Неверный код. Попробуйте ещё раз.'
-      verificationCode.value = ''
-      loading.value = false
-      return
-    }
-    
-    if (confirmData.code === 229) {
-      error.value = confirmData.message || 'Лимит попыток исчерпан. Нажмите \'Оплатить заново\' для нового кода.'
-      loading.value = false
-      return
-    }
-    
-    if (confirmData.detail) {
-      error.value = confirmData.detail
-      loading.value = false
-      return
-    }
-    
-    if (confirmData.code && confirmData.code !== 200) {
+    // Check for errors - new unified structure
+    if (!confirmData.success) {
       error.value = confirmData.message || 'Ошибка подтверждения'
+      
+      // Special handling for specific error codes
+      if (confirmData.code === 225) {
+        verificationCode.value = '' // Clear code for retry
+      }
+      
       loading.value = false
       return
     }
@@ -867,6 +854,15 @@ const checkPaymentStatus = async () => {
     })
     
     const statusData = await statusResponse.json()
+    
+    // Check success field first
+    if (!statusData.success && statusData.code !== 331 && statusData.code !== 101 && statusData.code !== -1 && statusData.code !== 227) {
+      // Failed - stop polling and show error
+      stopPaymentStatusPolling()
+      paymentStatusMessage.value = ''
+      error.value = statusData.message || 'Ошибка проверки статуса'
+      return
+    }
     
     // Final statuses - stop polling
     if (statusData.code === 330) {

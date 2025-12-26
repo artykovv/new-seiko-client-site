@@ -36,6 +36,12 @@
           {{ error }}
         </div>
 
+        <!-- Success Alert -->
+        <div v-if="successMessage" class="alert alert-success" role="alert">
+          <i class="bi bi-check-circle me-2"></i>
+          {{ successMessage }}
+        </div>
+
         <!-- Registration Form -->
         <form @submit.prevent="handleNext" class="register-form" novalidate>
           <!-- Step 1: Personal Info -->
@@ -929,6 +935,7 @@ const createdOrderId = ref(null)
 const paymentStatusPolling = ref(false)
 let pollingInterval = null
 const paymentStatusMessage = ref('')
+const successMessage = ref('') // Green success messages
 
 // Summary view
 const showSummary = ref(false)
@@ -1430,12 +1437,17 @@ const sendVerificationCode = async () => {
     
     if (!checkData.success) {
       error.value = checkData.message || 'Плательщик не найден в системе'
+      successMessage.value = ''
       mbankCheckLoading.value = false
       return
     }
     
-    // Store displayName
-    mbankDisplayName.value = checkData.displayName || ''
+    // Success - show message
+    successMessage.value = checkData.message || 'Плательщик найден в системе'
+    error.value = ''
+    
+    // Store displayName from data object
+    mbankDisplayName.value = checkData.data?.displayName || ''
     
     // Step 2: Create registration (only if not already created)
     if (!createdOrderId.value) {
@@ -1498,12 +1510,18 @@ const sendVerificationCode = async () => {
 
     const paymentData = await paymentResponse.json()
     
-    if (!paymentData.payment_id) {
+    if (!paymentData.success) {
+      error.value = paymentData.message || 'Ошибка инициализации платежа'
+      successMessage.value = ''
       throw new Error(paymentData.message || 'Ошибка инициализации платежа')
     }
 
-    // Store payment_id
-    paymentId.value = paymentData.payment_id
+    // Success - show message
+    successMessage.value = paymentData.message || 'OTP-код отправлен на ваш телефон'
+    error.value = ''
+
+    // Store payment_id from data object
+    paymentId.value = paymentData.data?.payment_id || ''
     
     // Start timer for OTP input
     startVerificationTimer()
@@ -1550,12 +1568,18 @@ const resendCode = async () => {
 
     const paymentData = await paymentResponse.json()
     
-    if (!paymentData.payment_id) {
+    if (!paymentData.success) {
+      error.value = paymentData.message || 'Ошибка отправки нового кода'
+      successMessage.value = ''
       throw new Error(paymentData.message || 'Ошибка отправки нового кода')
     }
 
-    // Update payment_id with new one
-    paymentId.value = paymentData.payment_id
+    // Success - show message
+    successMessage.value = paymentData.message || 'OTP-код отправлен на ваш телефон'
+    error.value = ''
+
+    // Update payment_id with new one from data object
+    paymentId.value = paymentData.data?.payment_id || ''
     
     // Clear old code and restart timer
     verificationCode.value = ''
@@ -1593,28 +1617,15 @@ const confirmPayment = async () => {
     
     const confirmData = await confirmResponse.json()
     
-    // Check for errors
-    if (confirmData.code === 225) {
-      error.value = confirmData.message || 'Неверный код. Попробуйте ещё раз.'
-      verificationCode.value = ''
-      loading.value = false
-      return
-    }
-    
-    if (confirmData.code === 229) {
-      error.value = confirmData.message || 'Лимит попыток исчерпан. Нажмите \'Оплатить заново\' для нового кода.'
-      loading.value = false
-      return
-    }
-    
-    if (confirmData.detail) {
-      error.value = confirmData.detail
-      loading.value = false
-      return
-    }
-    
-    if (confirmData.code && confirmData.code !== 200) {
+    // Check for errors - new unified structure
+    if (!confirmData.success) {
       error.value = confirmData.message || 'Ошибка подтверждения'
+      
+      // Special handling for specific error codes
+      if (confirmData.code === 225) {
+        verificationCode.value = '' // Clear code for retry
+      }
+      
       loading.value = false
       return
     }
@@ -1650,12 +1661,23 @@ const checkPaymentStatus = async () => {
     
     const statusData = await statusResponse.json()
     
+    // Check success field first
+    if (!statusData.success && statusData.code !== 331 && statusData.code !== 101 && statusData.code !== -1 && statusData.code !== 227) {
+      // Failed - stop polling and show error
+      stopPaymentStatusPolling()
+      paymentStatusMessage.value = ''
+      error.value = statusData.message || 'Транзакция неуспешна. Попробуйте позже.'
+      successMessage.value = ''
+      return
+    }
+    
     // Final statuses - stop polling
     if (statusData.code === 330) {
       // Success!
       stopPaymentStatusPolling()
-      paymentStatusMessage.value = 'Оплата успешно завершена!'
+      paymentStatusMessage.value = statusData.message || 'Оплата успешно завершена!'
       error.value = ''
+      successMessage.value = ''
       return
     }
     
@@ -1663,13 +1685,14 @@ const checkPaymentStatus = async () => {
       // Failed
       stopPaymentStatusPolling()
       paymentStatusMessage.value = ''
-      error.value = statusData.message || 'Транзакция неуспешна'
+      error.value = statusData.message || 'Транзакция неуспешна. Попробуйте позже.'
+      successMessage.value = ''
       return
     }
     
     // Intermediate statuses - continue polling (331, 101, -1, 227)
     if ([331, 101, -1, 227].includes(statusData.code)) {
-      paymentStatusMessage.value = 'Транзакция в обработке...'
+      paymentStatusMessage.value = statusData.message || 'Транзакция в обработке...'
       // Continue polling
       return
     }
@@ -1680,7 +1703,7 @@ const checkPaymentStatus = async () => {
   }
 }
 
-// Start polling payment status every 12 seconds
+// Start polling payment status every 10 seconds
 const startPaymentStatusPolling = () => {
   paymentStatusPolling.value = true
   paymentStatusMessage.value = 'Проверка статуса платежа...'
@@ -1688,10 +1711,10 @@ const startPaymentStatusPolling = () => {
   // Check immediately
   checkPaymentStatus()
   
-  // Then check every 12 seconds
+  // Then check every 10 seconds
   pollingInterval = setInterval(() => {
     checkPaymentStatus()
-  }, 12000) // 12 seconds
+  }, 10000) // 10 seconds
 }
 
 // Stop polling
