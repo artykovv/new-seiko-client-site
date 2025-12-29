@@ -1,12 +1,12 @@
 <template>
-  <div class="upgrade-wrapper">
-    <div class="upgrade-container">
+  <div v-if="isOpen" class="modal-overlay" @click.self="handleClose">
+    <div class="upgrade-modal">
       <!-- Header -->
       <div class="upgrade-header">
-        <button class="back-btn" @click="goBack">
-          <i class="bi bi-arrow-left"></i>
+        <h1 class="upgrade-title">Апгрейд пакета</h1>
+        <button class="btn-close-modal" @click="handleClose">
+          <i class="bi bi-x-lg"></i>
         </button>
-        <h1 class="upgrade-title">Upgrade Package</h1>
       </div>
 
       <!-- Progress Steps -->
@@ -34,11 +34,11 @@
 
         <!-- Step 1: Select New Package -->
         <div v-show="currentStep === 1" class="form-step">
-          <h2 class="step-title">{{ stepTitles[0] }}</h2>
+          <h3 class="step-title">{{ stepTitles[0] }}</h3>
           <p class="step-subtitle">{{ stepSubtitles[0] }}</p>
 
           <div class="current-package-info">
-            <h3>Текущий пакет</h3>
+            <h4>Текущий пакет</h4>
             <div class="package-card current">
               <i class="bi bi-box-seam"></i>
               <span>{{ currentPackage?.name }}</span>
@@ -62,7 +62,6 @@
                   <h3>{{ paket.name }}</h3>
                   <div class="paket-price">${{ paket.price }}</div>
                 </div>
-                <p class="paket-description">{{ paket.description }}</p>
                 <i class="bi bi-check-circle-fill check-icon"></i>
               </div>
             </div>
@@ -71,7 +70,7 @@
 
         <!-- Step 2: Select Products -->
         <div v-show="currentStep === 2" class="form-step">
-          <h2 class="step-title">{{ stepTitles[1] }}</h2>
+          <h3 class="step-title">{{ stepTitles[1] }}</h3>
           <p class="step-subtitle">{{ stepSubtitles[1] }}</p>
 
           <div class="budget-info">
@@ -136,7 +135,7 @@
 
         <!-- Step 3: Payment Method -->
         <div v-show="currentStep === 3" class="form-step">
-          <h2 class="step-title">{{ stepTitles[2] }}</h2>
+          <h3 class="step-title">{{ stepTitles[2] }}</h3>
           <p class="step-subtitle">{{ stepSubtitles[2] }}</p>
 
           <!-- Payment Method Selection -->
@@ -149,14 +148,14 @@
                 v-for="method in paymentMethods" 
                 :key="method.id"
                 class="payment-method-item"
-                :class="{ 'selected': formData.order.payment_method_id === method.id }"
+                :class="{ 'selected': selectedPaymentMethodId === method.id }"
                 @click="selectPaymentMethod(method.id)"
               >
                 <input
                   type="radio"
                   :id="`payment_${method.id}`"
                   :value="method.id"
-                  v-model.number="formData.order.payment_method_id"
+                  v-model.number="selectedPaymentMethodId"
                   class="payment-radio"
                 />
                 <label :for="`payment_${method.id}`" class="payment-label">
@@ -282,7 +281,7 @@
                 </div>
                 <div class="status-message">
                   <span v-if="paymentStatusPolling && !paymentStatusMessage.includes('успешно')">Пожалуйста, подождите. Транзакция обрабатывается...</span>
-                  <span v-else-if="paymentStatusMessage.includes('успешно')">Платеж успешно подтвержден. Вы можете вернуться на главную.</span>
+                  <span v-else-if="paymentStatusMessage.includes('успешно')">Платеж успешно подтвержден. Вы можете закрыть окно.</span>
                   <span v-else>{{ paymentStatusMessage }}</span>
                 </div>
               </div>
@@ -326,13 +325,21 @@
                 <span class="summary-label">Способ оплаты:</span>
                 <span class="summary-value">{{ getSelectedPaymentMethodName() }}</span>
               </div>
-              <div class="summary-item total-item">
-                <span class="summary-label">Итого (USD):</span>
-                <span class="summary-value total-value">${{ selectedProductsTotal.toFixed(2) }}</span>
+              <div class="summary-item">
+                <span class="summary-label">Сумма товаров (USD):</span>
+                <span class="summary-value">${{ selectedProductsTotal.toFixed(2) }}</span>
+              </div>
+              <div class="summary-item" v-if="selectedNewPackage?.referral_bonus">
+                <span class="summary-label">Реферальный бонус:</span>
+                <span class="summary-value" style="color: #dc3545;">-${{ selectedNewPackage.referral_bonus.toFixed(2) }}</span>
               </div>
               <div class="summary-item total-item">
-                <span class="summary-label">Итого (сом):</span>
-                <span class="summary-value total-value">{{ (selectedProductsTotal * 85).toFixed(2) }} сом</span>
+                <span class="summary-label">Итого к оплате (USD):</span>
+                <span class="summary-value total-value">${{ finalTotal.toFixed(2) }}</span>
+              </div>
+              <div class="summary-item total-item">
+                <span class="summary-label">Итого к оплате (сом):</span>
+                <span class="summary-value total-value">{{ (finalTotal * 85).toFixed(2) }} сом</span>
               </div>
             </div>
           </div>
@@ -341,7 +348,7 @@
         <!-- Navigation Buttons -->
         <div class="form-navigation">
           <button
-            v-if="currentStep > 1 && !showCodeVerification && !showSummary"
+            v-if="currentStep > 1 && !showCodeVerification && !showSummary && (currentStep !== 3 || showPhoneVerification)"
             type="button"
             class="btn btn-secondary"
             @click="previousStep"
@@ -351,19 +358,21 @@
 
           <button
             v-if="currentStep < 3"
-            type="submit"
+            type="button"
             class="btn btn-primary"
+            @click="handleNext"
           >
             Далее<i class="bi bi-arrow-right ms-2"></i>
           </button>
 
+          <!-- Step 3: Phone Verification - Send Code -->
           <!-- Step 3: Payment Method Selection - Show Далее -->
           <button
             v-if="currentStep === 3 && !showPhoneVerification && !showCodeVerification && !showSummary"
             type="button"
             class="btn btn-primary"
             @click="proceedToNextStep"
-            :disabled="!formData.order.payment_method_id"
+            :disabled="!selectedPaymentMethodId"
           >
             Далее<i class="bi bi-arrow-right ms-2"></i>
           </button>
@@ -384,11 +393,12 @@
           <button
             v-if="currentStep === 3 && showCodeVerification && !showSummary"
             type="button"
-            class="btn btn-primary"
+            class="btn btn-success"
             @click="confirmPayment"
             :disabled="verificationCode.length !== 4 || loading"
           >
             <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
+            <i v-else class="bi bi-check-circle me-2"></i>
             {{ loading ? 'Подтверждение...' : 'Подтвердить оплату' }}
           </button>
 
@@ -402,7 +412,7 @@
           >
             <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
             <i v-else class="bi bi-box-arrow-in-right me-2"></i>
-            {{ paymentId ? 'Вернуться на главную' : (loading ? 'Обработка...' : 'Завершить апгрейд') }}
+            {{ paymentId ? 'Закрыть' : (loading ? 'Обработка...' : 'Завершить апгрейд') }}
           </button>
         </div>
       </form>
@@ -411,11 +421,21 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { BACKEND_API_URL, MB_API_URL } from '../config'
 
-const router = useRouter()
+const props = defineProps({
+  isOpen: {
+    type: Boolean,
+    required: true
+  },
+  cabinetId: {
+    type: String,
+    required: true
+  }
+})
+
+const emit = defineEmits(['close', 'success'])
 
 // Steps
 const steps = [1, 2, 3]
@@ -431,8 +451,7 @@ const currentStep = ref(1)
 const loading = ref(false)
 const error = ref('')
 
-// Current cabinet and package data
-const cabinetData = ref(null)
+// Current package data
 const currentPackage = ref(null)
 
 // Pakets
@@ -448,9 +467,10 @@ const selectedProducts = ref([])
 
 // Payment methods
 const paymentMethods = ref([])
+const selectedPaymentMethodId = ref(null)
 
 // Payment verification (for Mbank)
-const verificationPhone = ref('')
+const verificationPhone = ref('996')
 const verificationCode = ref('')
 const showPhoneVerification = ref(false)
 const showCodeVerification = ref(false)
@@ -499,9 +519,65 @@ const availableBudget = computed(() => {
   return selectedNewPackage.value.price - currentPackage.value.price
 })
 
+const finalTotal = computed(() => {
+  if (!selectedNewPackage.value) return selectedProductsTotal.value
+  const referralBonus = selectedNewPackage.value.referral_bonus || 0
+  return Math.max(0, selectedProductsTotal.value - referralBonus)
+})
+
+// Watch for cabinetId changes
+watch(() => props.cabinetId, (newId) => {
+  if (newId && props.isOpen) {
+    initializeUpgrade()
+  }
+}, { immediate: true })
+
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen && props.cabinetId) {
+    initializeUpgrade()
+  } else if (!isOpen) {
+    resetForm()
+  }
+})
+
 // Functions
-const goBack = () => {
-  router.push('/')
+const initializeUpgrade = async () => {
+  await fetchPakets()
+  await fetchCabinetData()
+}
+
+const resetForm = () => {
+  currentStep.value = 1
+  error.value = ''
+  selectedProducts.value = []
+  selectedPaymentMethodId.value = null
+  formData.value = {
+    cabinet_id: '',
+    old_paket_id: null,
+    new_paket_id: null,
+    order: {
+      items: [],
+      payment_method_id: null,
+      shipping_address: '',
+      notes: ''
+    }
+  }
+  showPhoneVerification.value = false
+  showCodeVerification.value = false
+  showSummary.value = false
+  verificationPhone.value = '996'
+  verificationCode.value = ''
+  paymentId.value = ''
+  createdOrderId.value = null
+  paymentStatusMessage.value = ''
+  stopPaymentStatusPolling()
+  if (verificationInterval) {
+    clearInterval(verificationInterval)
+  }
+}
+
+const handleClose = () => {
+  emit('close')
 }
 
 const selectPaket = (paketId) => {
@@ -545,34 +621,8 @@ const getProductById = (productId) => {
   return products.value.find(p => p.id === productId)
 }
 
-// Payment methods
-const selectPaymentMethod = (methodId) => {
-  formData.value.order.payment_method_id = methodId
-  const selectedMethod = paymentMethods.value.find(m => m.id === methodId)
-  
-  if (selectedMethod && selectedMethod.name === 'Мбанк') {
-    showPhoneVerification.value = true
-    verificationPhone.value = '996'
-  } else {
-    showPhoneVerification.value = false
-    showCodeVerification.value = false
-  }
-}
-
-const getSelectedPaymentMethodName = () => {
-  const method = paymentMethods.value.find(m => m.id === formData.value.order.payment_method_id)
-  return method ? method.name : ''
-}
-
-const changePaymentMethod = () => {
-  showPhoneVerification.value = false
-  showCodeVerification.value = false
-  verificationPhone.value = ''
-  verificationCode.value = ''
-  if (verificationInterval) {
-    clearInterval(verificationInterval)
-  }
-  verificationTimer.value = 0
+const validatePhoneInput = () => {
+  verificationPhone.value = verificationPhone.value.replace(/\D/g, '')
 }
 
 const changePhoneNumber = () => {
@@ -585,44 +635,21 @@ const changePhoneNumber = () => {
   verificationTimer.value = 0
 }
 
-const proceedToNextStep = () => {
-  const selectedMethod = paymentMethods.value.find(m => m.id === formData.value.order.payment_method_id)
-  
-  if (selectedMethod && selectedMethod.name === 'Наличные') {
-    showSummary.value = true
-  }
-}
-
-const proceedToSummary = () => {
-  showSummary.value = true
-}
-
-// Validate phone input - only digits
-const validatePhoneInput = () => {
-  verificationPhone.value = verificationPhone.value.replace(/\D/g, '')
-}
-
-// Handle summary action - either redirect home (Mbank) or complete upgrade (Cash)
 const handleSummaryAction = () => {
-  // If payment was made via Mbank (paymentId exists), redirect to home
   if (paymentId.value) {
-    router.push({
-      path: '/',
-      query: { upgraded: 'true', paid: 'true' }
-    })
+    emit('success')
+    handleClose()
   } else {
-    // For cash payment, complete upgrade
     handleSubmit()
   }
 }
 
-// Send verification code - first check if phone exists in Mbank
+// Send verification code
 const sendVerificationCode = async () => {
   mbankCheckLoading.value = true
   error.value = ''
   
   try {
-    // Clean phone number (already digits only from validation)
     const cleanPhone = verificationPhone.value
     
     // Step 1: Check if phone exists in Mbank system
@@ -645,7 +672,6 @@ const sendVerificationCode = async () => {
       return
     }
     
-    // Store displayName from data object
     mbankDisplayName.value = checkData.data?.displayName || ''
     
     // Step 2: Create upgrade order (only if not already created)
@@ -655,7 +681,6 @@ const sendVerificationCode = async () => {
         throw new Error('Не авторизован')
       }
       
-      // Prepare order items
       const orderItems = selectedProducts.value.map(item => {
         const product = getProductById(item.id)
         return {
@@ -671,7 +696,7 @@ const sendVerificationCode = async () => {
         new_paket_id: formData.value.new_paket_id,
         order: {
           items: orderItems,
-          payment_method_id: formData.value.order.payment_method_id,
+          payment_method_id: selectedPaymentMethodId.value,
           shipping_address: formData.value.order.shipping_address || '',
           notes: formData.value.order.notes || ''
         }
@@ -696,9 +721,8 @@ const sendVerificationCode = async () => {
       createdOrderId.value = upgradeData.order_id
     }
 
-    // Step 3: Start Mbank payment (always, even if changing phone)
-    // Calculate amount: (total product amount * 85) * 100 = tyiyn
-    const amountTyiyn = Math.round(selectedProductsTotal.value * 85 * 100)
+    // Step 3: Start Mbank payment
+    const amountTyiyn = Math.round(finalTotal.value * 85 * 100)
     
     const paymentResponse = await fetch(`${MB_API_URL}/api/payment/start`, {
       method: 'POST',
@@ -720,13 +744,10 @@ const sendVerificationCode = async () => {
       throw new Error(paymentData.message || 'Ошибка инициализации платежа')
     }
 
-    // Store payment_id from data object
     paymentId.value = paymentData.data?.payment_id || ''
     
-    // Start timer for OTP input
     startVerificationTimer()
     
-    // Proceed to code verification
     showPhoneVerification.value = false
     showCodeVerification.value = true
     
@@ -738,7 +759,7 @@ const sendVerificationCode = async () => {
   }
 }
 
-// Resend verification code - restart payment to get new OTP
+// Resend verification code
 const resendCode = async () => {
   if (!createdOrderId.value) {
     error.value = 'Ошибка: заказ не найден'
@@ -750,7 +771,7 @@ const resendCode = async () => {
   
   try {
     const cleanPhone = verificationPhone.value
-    const amountTyiyn = Math.round(selectedProductsTotal.value * 85 * 100)
+    const amountTyiyn = Math.round(finalTotal.value * 85 * 100)
     
     const paymentResponse = await fetch(`${MB_API_URL}/api/payment/start`, {
       method: 'POST',
@@ -772,10 +793,8 @@ const resendCode = async () => {
       throw new Error(paymentData.message || 'Ошибка отправки нового кода')
     }
 
-    // Update payment_id with new one from data object
     paymentId.value = paymentData.data?.payment_id || ''
     
-    // Clear old code and restart timer
     verificationCode.value = ''
     startVerificationTimer()
     
@@ -811,24 +830,20 @@ const confirmPayment = async () => {
     
     const confirmData = await confirmResponse.json()
     
-    // Check for errors - new unified structure
     if (!confirmData.success) {
       error.value = confirmData.message || 'Ошибка подтверждения'
       
-      // Special handling for specific error codes
       if (confirmData.code === 225) {
-        verificationCode.value = '' // Clear code for retry
+        verificationCode.value = ''
       }
       
       loading.value = false
       return
     }
     
-    // Success! OTP confirmed, now start polling payment status
     showCodeVerification.value = false
     showSummary.value = true
     
-    // Start polling payment status
     startPaymentStatusPolling()
     
   } catch (err) {
@@ -855,18 +870,14 @@ const checkPaymentStatus = async () => {
     
     const statusData = await statusResponse.json()
     
-    // Check success field first
     if (!statusData.success && statusData.code !== 331 && statusData.code !== 101 && statusData.code !== -1 && statusData.code !== 227) {
-      // Failed - stop polling and show error
       stopPaymentStatusPolling()
       paymentStatusMessage.value = ''
       error.value = statusData.message || 'Ошибка проверки статуса'
       return
     }
     
-    // Final statuses - stop polling
     if (statusData.code === 330) {
-      // Success!
       stopPaymentStatusPolling()
       paymentStatusMessage.value = 'Оплата успешно завершена!'
       error.value = ''
@@ -874,41 +885,33 @@ const checkPaymentStatus = async () => {
     }
     
     if (statusData.code === 332 || statusData.code === 333) {
-      // Failed
       stopPaymentStatusPolling()
       paymentStatusMessage.value = ''
       error.value = statusData.message || 'Транзакция неуспешна'
       return
     }
     
-    // Intermediate statuses - continue polling (331, 101, -1, 227)
     if ([331, 101, -1, 227].includes(statusData.code)) {
       paymentStatusMessage.value = 'Транзакция в обработке...'
-      // Continue polling
       return
     }
     
   } catch (err) {
     console.error('Error checking payment status:', err)
-    // Don't stop polling on network errors, just log
   }
 }
 
-// Start polling payment status every 12 seconds
 const startPaymentStatusPolling = () => {
   paymentStatusPolling.value = true
   paymentStatusMessage.value = 'Проверка статуса платежа...'
   
-  // Check immediately
   checkPaymentStatus()
   
-  // Then check every 12 seconds
   pollingInterval = setInterval(() => {
     checkPaymentStatus()
-  }, 12000) // 12 seconds
+  }, 12000)
 }
 
-// Stop polling
 const stopPaymentStatusPolling = () => {
   paymentStatusPolling.value = false
   if (pollingInterval) {
@@ -933,22 +936,10 @@ const formatTimer = (seconds) => {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
 }
 
-// Navigation
 const previousStep = () => {
   if (currentStep.value === 3 && showSummary.value) {
     showSummary.value = false
-    
-    const selectedMethod = paymentMethods.value.find(m => m.id === formData.value.order.payment_method_id)
-    if (selectedMethod && selectedMethod.name === 'Мбанк') {
-      showPhoneVerification.value = false
-      showCodeVerification.value = false
-      verificationPhone.value = ''
-      verificationCode.value = ''
-      if (verificationInterval) {
-        clearInterval(verificationInterval)
-      }
-      verificationTimer.value = 0
-    }
+    showPhoneVerification.value = true
     return
   }
   
@@ -960,12 +951,6 @@ const previousStep = () => {
       clearInterval(verificationInterval)
     }
     verificationTimer.value = 0
-    return
-  }
-  
-  if (currentStep.value === 3 && showPhoneVerification.value) {
-    showPhoneVerification.value = false
-    verificationPhone.value = ''
     return
   }
   
@@ -997,27 +982,20 @@ const validateCurrentStep = () => {
     }
   }
   
-  if (currentStep.value === 3) {
-    if (!formData.value.order.payment_method_id) {
-      error.value = 'Пожалуйста, выберите способ оплаты'
-      return false
-    }
-  }
-  
   return true
 }
 
-const handleNext = () => {
+const handleNext = async () => {
   if (!validateCurrentStep()) {
     return
   }
   
   if (currentStep.value === 1) {
-    fetchProducts()
+    await fetchProducts()
   }
   
   if (currentStep.value === 2) {
-    fetchPaymentMethods()
+    await fetchPaymentMethods()
   }
   
   if (currentStep.value < 3) {
@@ -1039,7 +1017,6 @@ const handleSubmit = async () => {
       throw new Error('Не авторизован')
     }
     
-    // Prepare order items
     const orderItems = selectedProducts.value.map(item => {
       const product = getProductById(item.id)
       return {
@@ -1055,7 +1032,7 @@ const handleSubmit = async () => {
       new_paket_id: formData.value.new_paket_id,
       order: {
         items: orderItems,
-        payment_method_id: formData.value.order.payment_method_id,
+        payment_method_id: selectedPaymentMethodId.value,
         shipping_address: formData.value.order.shipping_address || '',
         notes: formData.value.order.notes || ''
       }
@@ -1072,10 +1049,8 @@ const handleSubmit = async () => {
     })
     
     if (response.status === 201 || response.ok) {
-      router.push({
-        path: '/',
-        query: { upgraded: 'true' }
-      })
+      emit('success')
+      handleClose()
     } else {
       const errorData = await response.json()
       throw new Error(errorData.detail || 'Ошибка апгрейда')
@@ -1094,8 +1069,8 @@ const fetchCabinetData = async () => {
     const token = localStorage.getItem('access_token')
     if (!token) return
     
-    const cabinetsResponse = await fetch(
-      `${BACKEND_API_URL}/api/cabinets/?page=1&page_size=1`,
+    const response = await fetch(
+      `${BACKEND_API_URL}/api/cabinets/${props.cabinetId}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1104,27 +1079,22 @@ const fetchCabinetData = async () => {
       }
     )
     
-    if (cabinetsResponse.ok) {
-      const cabinetsData = await cabinetsResponse.json()
-      if (cabinetsData.cabinets && cabinetsData.cabinets.length > 0) {
-        const cabinet = cabinetsData.cabinets[0]
-        cabinetData.value = cabinet
-        formData.value.cabinet_id = cabinet.id
-        formData.value.old_paket_id = cabinet.paket_id
-        
-        // Fetch current package details
-        const paketResponse = await fetch(
-          `${BACKEND_API_URL}/api/pakets/${cabinet.paket_id}`,
-          {
-            headers: {
-              'accept': 'application/json'
-            }
+    if (response.ok) {
+      const cabinet = await response.json()
+      formData.value.cabinet_id = cabinet.id
+      formData.value.old_paket_id = cabinet.paket_id
+      
+      const paketResponse = await fetch(
+        `${BACKEND_API_URL}/api/pakets/${cabinet.paket_id}`,
+        {
+          headers: {
+            'accept': 'application/json'
           }
-        )
-        
-        if (paketResponse.ok) {
-          currentPackage.value = await paketResponse.json()
         }
+      )
+      
+      if (paketResponse.ok) {
+        currentPackage.value = await paketResponse.json()
       }
     }
   } catch (err) {
@@ -1163,8 +1133,6 @@ const fetchProducts = async () => {
     
     if (response.ok) {
       products.value = await response.json()
-      // Show all products, even those without paket_prices
-      // Price will be 0 for products without paket_prices
     }
   } catch (err) {
     console.error('Error fetching products:', err)
@@ -1187,66 +1155,132 @@ const fetchPaymentMethods = async () => {
   }
 }
 
-onMounted(async () => {
-  await fetchCabinetData()
-  await fetchPakets()
-})
+// Handle payment method selection
+const selectPaymentMethod = (methodId) => {
+  selectedPaymentMethodId.value = methodId
+}
+
+// Get selected payment method name
+const getSelectedPaymentMethodName = () => {
+  const method = paymentMethods.value.find(m => m.id === selectedPaymentMethodId.value)
+  return method ? method.name : ''
+}
+
+// Proceed to next step after payment method selection
+const proceedToNextStep = () => {
+  const selectedMethod = paymentMethods.value.find(m => m.id === selectedPaymentMethodId.value)
+  
+  // If Наличные (Cash), go directly to summary
+  if (selectedMethod && selectedMethod.name === 'Наличные') {
+    showSummary.value = true
+  }
+  // If Мбанк, show phone verification
+  else if (selectedMethod && selectedMethod.name === 'Мбанк') {
+    showPhoneVerification.value = true
+    verificationPhone.value = '996'
+  }
+}
+
+// Change payment method (go back to selection)
+const changePaymentMethod = () => {
+  showPhoneVerification.value = false
+  showCodeVerification.value = false
+  showSummary.value = false
+  verificationPhone.value = ''
+  verificationCode.value = ''
+  if (verificationInterval) {
+    clearInterval(verificationInterval)
+  }
+  verificationTimer.value = 0
+}
 
 onUnmounted(() => {
-  // Cleanup polling interval when component is destroyed
   stopPaymentStatusPolling()
+  if (verificationInterval) {
+    clearInterval(verificationInterval)
+  }
 })
 </script>
 
 <style scoped>
-/* Import similar styles from Register.vue - keeping it concise */
-.upgrade-wrapper {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 2rem 1rem;
-}
-
-.upgrade-container {
-  max-width: 800px;
-  margin: 0 auto;
-  background: white;
-  border-radius: 24px;
-  padding: 2rem;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-}
-
-.upgrade-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.back-btn {
-  background: #f8f9fa;
-  border: none;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  z-index: 9999;
+  padding: 1rem;
+  overflow-y: auto;
 }
 
-.back-btn:hover {
-  background: #e9ecef;
-  transform: translateX(-4px);
+/* Modal Container */
+.upgrade-modal {
+  background: white;
+  border-radius: 24px;
+  padding: 2rem;
+  max-width: 900px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Header */
+.upgrade-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f8f9fa;
 }
 
 .upgrade-title {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
   color: #1a1a1a;
   margin: 0;
 }
 
+.btn-close-modal {
+  background: #f8f9fa;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #6c757d;
+}
+
+.btn-close-modal:hover {
+  background: #e9ecef;
+  color: #495057;
+  transform: rotate(90deg);
+}
+
+/* Progress Steps - same as Upgrade.vue */
 .progress-steps {
   display: flex;
   justify-content: space-between;
@@ -1313,6 +1347,41 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
+/* Form */
+.upgrade-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-step {
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Alert */
+.alert {
+  padding: 1rem;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+}
+
+.alert-danger {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+/* Current Package Info */
 .current-package-info {
   margin-bottom: 2rem;
 }
@@ -1351,6 +1420,7 @@ onUnmounted(() => {
   color: #667eea;
 }
 
+/* Pakets Grid */
 .pakets-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -1395,12 +1465,6 @@ onUnmounted(() => {
   color: #667eea;
 }
 
-.paket-description {
-  font-size: 13px;
-  color: #6c757d;
-  margin: 0;
-}
-
 .check-icon {
   position: absolute;
   top: 1rem;
@@ -1414,6 +1478,7 @@ onUnmounted(() => {
   display: block;
 }
 
+/* Budget Info */
 .budget-info {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 16px;
@@ -1451,22 +1516,18 @@ onUnmounted(() => {
   color: #ffc107;
 }
 
-.budget-status.under-budget i {
-  color: #ffc107;
-}
-
 .budget-status.ok-budget {
   color: #28a745;
 }
 
-.budget-status.ok-budget i {
-  color: #28a745;
-}
-
+/* Products List */
 .products-list {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
 }
 
 .product-item {
@@ -1474,9 +1535,9 @@ onUnmounted(() => {
   border-radius: 12px;
   padding: 1rem;
   display: grid;
-  grid-template-columns: 80px 1fr;
+  grid-template-columns: 80px 1fr auto;
   gap: 1rem;
-  align-items: start;
+  align-items: center;
 }
 
 .product-image {
@@ -1484,12 +1545,10 @@ onUnmounted(() => {
   height: 80px;
   border-radius: 8px;
   overflow: hidden;
-  flex-shrink: 0;
   background: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  grid-row: 1 / 3;
 }
 
 .product-image img {
@@ -1509,22 +1568,10 @@ onUnmounted(() => {
   font-size: 32px;
 }
 
-.product-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
 .product-info h4 {
   font-size: 16px;
   font-weight: 600;
   color: #1a1a1a;
-  margin: 0;
-}
-
-.product-description {
-  font-size: 13px;
-  color: #6c757d;
   margin: 0 0 0.5rem 0;
 }
 
@@ -1538,7 +1585,6 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin-top: 0.5rem;
 }
 
 .btn-quantity {
@@ -1572,6 +1618,7 @@ onUnmounted(() => {
   text-align: center;
 }
 
+/* Total Section */
 .total-section {
   margin-top: 2rem;
   padding-top: 1rem;
@@ -1590,89 +1637,7 @@ onUnmounted(() => {
   color: #667eea;
 }
 
-/* Payment styles - reuse from Register.vue */
-.payment-method-section {
-  margin-bottom: 1.5rem;
-}
-
-.payment-methods-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.payment-method-item {
-  background: #f8f9fa;
-  border: 2px solid #e9ecef;
-  border-radius: 12px;
-  padding: 1rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative;
-}
-
-.payment-method-item:hover {
-  background: #e9ecef;
-  border-color: #dee2e6;
-}
-
-.payment-method-item.selected {
-  background: rgba(102, 126, 234, 0.05);
-  border-color: #667eea;
-}
-
-.payment-radio {
-  position: absolute;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.payment-label {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  cursor: pointer;
-  margin: 0;
-  width: 100%;
-}
-
-.payment-icon-unchecked,
-.payment-icon-checked {
-  font-size: 20px;
-  transition: all 0.3s ease;
-}
-
-.payment-icon-unchecked {
-  color: #6c757d;
-}
-
-.payment-icon-checked {
-  color: #667eea;
-  display: none;
-}
-
-.payment-method-item.selected .payment-icon-unchecked {
-  display: none;
-}
-
-.payment-method-item.selected .payment-icon-checked {
-  display: inline;
-}
-
-.payment-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1a1a1a;
-  flex: 1;
-}
-
-.payment-description {
-  font-size: 13px;
-  color: #6c757d;
-}
-
-/* Summary styles */
+/* Summary View */
 .summary-view {
   max-height: 500px;
   overflow-y: auto;
@@ -1688,95 +1653,6 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-/* Payment Status Alert Styles */
-.payment-status-alert {
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
-  padding: 1.5rem;
-  border-radius: 12px;
-  margin-bottom: 1.5rem;
-  min-height: 100px;
-  border: 2px solid;
-  transition: all 0.3s ease;
-}
-
-.payment-status-alert .status-icon {
-  flex-shrink: 0;
-  width: 50px;
-  height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  font-size: 28px;
-}
-
-.payment-status-alert .status-icon .spinner-border {
-  width: 40px;
-  height: 40px;
-  border-width: 4px;
-}
-
-.payment-status-alert .status-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.payment-status-alert .status-title {
-  font-size: 18px;
-  font-weight: 700;
-  margin: 0;
-}
-
-.payment-status-alert .status-message {
-  font-size: 14px;
-  line-height: 1.5;
-  opacity: 0.9;
-}
-
-/* Processing State */
-.payment-status-alert.status-processing {
-  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-  border-color: #2196f3;
-  color: #0d47a1;
-}
-
-.payment-status-alert.status-processing .status-icon {
-  background: rgba(33, 150, 243, 0.15);
-  color: #2196f3;
-}
-
-.payment-status-alert.status-processing .spinner-border {
-  color: #2196f3;
-}
-
-/* Success State */
-.payment-status-alert.status-success {
-  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-  border-color: #4caf50;
-  color: #1b5e20;
-}
-
-.payment-status-alert.status-success .status-icon {
-  background: rgba(76, 175, 80, 0.15);
-  color: #4caf50;
-}
-
-/* Error State */
-.payment-status-alert.status-error {
-  background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
-  border-color: #f44336;
-  color: #b71c1c;
-}
-
-.payment-status-alert.status-error .status-icon {
-  background: rgba(244, 67, 54, 0.15);
-  color: #f44336;
 }
 
 .summary-section {
@@ -1871,10 +1747,144 @@ onUnmounted(() => {
   font-weight: 700 !important;
 }
 
+/* Payment Status Alert */
+.payment-status-alert {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  border: 2px solid;
+}
+
+.payment-status-alert .status-icon {
+  flex-shrink: 0;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 28px;
+}
+
+.payment-status-alert.status-processing {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  border-color: #2196f3;
+  color: #0d47a1;
+}
+
+.payment-status-alert.status-success {
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  border-color: #4caf50;
+  color: #1b5e20;
+}
+
+.payment-status-alert.status-error {
+  background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+  border-color: #f44336;
+  color: #b71c1c;
+}
+
+/* Verification Section */
+.verification-section {
+  text-align: center;
+}
+
+.selected-payment-info {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.info-label {
+  font-size: 13px;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.info-value {
+  font-size: 15px;
+  color: #1a1a1a;
+  font-weight: 600;
+  flex: 1;
+}
+
+.btn-change {
+  background: transparent;
+  border: 1px solid #667eea;
+  color: #667eea;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-change:hover {
+  background: #667eea;
+  color: white;
+}
+
+.verification-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 0.5rem;
+}
+
+.verification-subtitle {
+  font-size: 14px;
+  color: #6c757d;
+  margin-bottom: 1.5rem;
+}
+
+.code-input {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 1rem;
+  max-width: 200px;
+  margin: 0 auto;
+}
+
+/* Form Controls */
+.form-label {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 0.5rem;
+  font-size: 13px;
+}
+
+.form-control {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  font-size: 15px;
+  transition: all 0.3s ease;
+}
+
+.form-control:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  outline: none;
+}
+
+/* Navigation */
 .form-navigation {
   display: flex;
   gap: 1rem;
   margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 2px solid #f8f9fa;
 }
 
 .btn {
@@ -1926,154 +1936,140 @@ onUnmounted(() => {
   cursor: not-allowed;
 }
 
-.alert {
-  padding: 1rem;
-  border-radius: 12px;
-  margin-bottom: 1rem;
+/* Utility Classes */
+.me-2 {
+  margin-right: 0.5rem;
 }
 
-.alert-danger {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+.ms-2 {
+  margin-left: 0.5rem;
 }
 
-.form-label {
-  display: flex;
-  align-items: center;
-  font-weight: 600;
-  color: #495057;
-  margin-bottom: 0.5rem;
-  font-size: 13px;
-}
-
-.form-control {
-  width: 100%;
-  padding: 0.875rem 1rem;
-  border: 2px solid #e9ecef;
-  border-radius: 12px;
-  font-size: 15px;
-  transition: all 0.3s ease;
-}
-
-.form-control:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-  outline: none;
-}
-
-.step-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin-bottom: 0.5rem;
-}
-
-.step-subtitle {
-  font-size: 14px;
-  color: #6c757d;
+/* Payment Method Selection */
+.payment-method-section {
   margin-bottom: 2rem;
 }
 
-.form-step {
-  animation: fadeIn 0.5s ease-out;
+.payment-methods-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Verification styles */
-.verification-section {
-  text-align: center;
-}
-
-.selected-payment-info {
+.payment-method-item {
   background: #f8f9fa;
+  border: 2px solid #e9ecef;
   border-radius: 12px;
   padding: 1rem;
-  margin-bottom: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.payment-method-item:hover {
+  background: #e9ecef;
+  border-color: #667eea;
+}
+
+.payment-method-item.selected {
+  background: rgba(102, 126, 234, 0.05);
+  border-color: #667eea;
+}
+
+.payment-radio {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.payment-label {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+  width: 100%;
 }
 
-.info-label {
-  font-size: 13px;
+.payment-icon-unchecked,
+.payment-icon-checked {
+  font-size: 20px;
+  transition: all 0.3s ease;
+}
+
+.payment-icon-unchecked {
   color: #6c757d;
-  font-weight: 500;
 }
 
-.info-value {
+.payment-icon-checked {
+  color: #667eea;
+  display: none;
+}
+
+.payment-method-item.selected .payment-icon-unchecked {
+  display: none;
+}
+
+.payment-method-item.selected .payment-icon-checked {
+  display: block;
+}
+
+.payment-name {
   font-size: 15px;
-  color: #1a1a1a;
   font-weight: 600;
+  color: #1a1a1a;
   flex: 1;
 }
 
-.btn-change {
-  background: transparent;
-  border: 1px solid #667eea;
-  color: #667eea;
-  border-radius: 8px;
-  padding: 0.5rem 0.75rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-}
-
-.btn-change:hover {
-  background: #667eea;
-  color: white;
-}
-
-.verification-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin-bottom: 0.5rem;
-}
-
-.verification-subtitle {
-  font-size: 14px;
+.payment-description {
+  font-size: 13px;
   color: #6c757d;
-  margin-bottom: 1.5rem;
 }
 
-.code-input {
-  text-align: center;
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: 1rem;
-  max-width: 200px;
-  margin: 0 auto;
+.text-success {
+  color: #28a745;
 }
 
-.timer-text {
-  font-size: 14px;
-  color: #6c757d;
-  margin-top: 1rem;
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
-@media (max-width: 768px) {
-  .upgrade-wrapper {
-    padding: 1rem 0.5rem;
+.spinner-border {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  vertical-align: text-bottom;
+  border: 0.25em solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spinner-border 0.75s linear infinite;
+}
+
+.spinner-border-sm {
+  width: 0.875rem;
+  height: 0.875rem;
+  border-width: 0.2em;
+}
+
+@keyframes spinner-border {
+  to {
+    transform: rotate(360deg);
   }
-  
-  .upgrade-container {
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .upgrade-modal {
     padding: 1.5rem 1rem;
-    border-radius: 16px;
+    max-height: 95vh;
   }
   
   .upgrade-title {
@@ -2093,11 +2089,6 @@ onUnmounted(() => {
     font-size: 24px;
   }
   
-  .budget-used,
-  .budget-status {
-    font-size: 14px;
-  }
-  
   .product-item {
     grid-template-columns: 60px 1fr;
     padding: 0.75rem;
@@ -2108,26 +2099,9 @@ onUnmounted(() => {
     height: 60px;
   }
   
-  .product-info h4 {
-    font-size: 14px;
-  }
-  
-  .product-price {
-    font-size: 16px;
-  }
-  
   .product-controls {
-    margin-top: 0.25rem;
-  }
-  
-  .btn-quantity {
-    width: 28px;
-    height: 28px;
-  }
-  
-  .quantity {
-    font-size: 14px;
-    min-width: 24px;
+    grid-column: 2;
+    margin-top: 0.5rem;
   }
   
   .form-navigation {
@@ -2137,13 +2111,6 @@ onUnmounted(() => {
   .btn {
     width: 100%;
   }
-  
-  .step-title {
-    font-size: 20px;
-  }
-  
-  .step-subtitle {
-    font-size: 13px;
-  }
 }
 </style>
+

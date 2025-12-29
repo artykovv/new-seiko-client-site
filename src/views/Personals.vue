@@ -76,6 +76,13 @@
                   </span>
                 </div>
               </div>
+
+              <!-- Upgrade Button -->
+              <div class="personal-footer" v-if="canUpgrade(personal)">
+                <button class="btn-upgrade" @click="openUpgradeModal(personal)">
+                  <i class="bi bi-arrow-up-circle me-2"></i>Upgrade
+                </button>
+              </div>
             </div>
           </div>
 
@@ -118,27 +125,73 @@
     </div>
 
     <MenuModal :is-open="showMenu" @close="showMenu = false" />
+
+    <!-- Upgrade Modal -->
+    <UpgradeModal 
+      :is-open="showUpgradeModal"
+      :cabinet-id="selectedPersonalId"
+      @close="closeUpgradeModal"
+      @success="handleUpgradeSuccess"
+    />
+
+    <!-- Toast Notification -->
+    <ToastNotification
+      :show="toast.show"
+      :message="toast.message"
+      :type="toast.type"
+      :duration="toast.duration"
+      @close="toast.show = false"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import PageHeader from '../components/PageHeader.vue'
 import MenuModal from '../components/MenuModal.vue'
+import UpgradeModal from '../components/UpgradeModal.vue'
+import ToastNotification from '../components/ToastNotification.vue'
 import { BACKEND_API_URL } from '../config'
 
+// State
 const showMenu = ref(false)
-const loadingCabinets = ref(false)
-const loadingPersonals = ref(false)
+const selectedCabinetId = ref('')
 const cabinets = ref([])
-const selectedCabinetId = ref(null)
-const personalCabinets = ref([])
-const showRegistered = ref(true)
-const page = ref(1)
-const pageSize = ref(20)
-const totalPages = ref(0)
-const totalCabinets = ref(0)
+const loadingCabinets = ref(false)
 
+// Personal cabinets
+const personalCabinets = ref([])
+const loadingPersonals = ref(false)
+const showRegistered = ref(false)
+const page = ref(1)
+const pageSize = ref(12)
+const totalCabinets = ref(0)
+const totalPages = ref(0)
+
+// Pakets for upgrade check
+const pakets = ref([])
+
+// Upgrade modal
+const showUpgradeModal = ref(false)
+const selectedPersonalId = ref('')
+
+// Toast notification
+const toast = ref({
+  show: false,
+  message: '',
+  type: 'success',
+  duration: 3000
+})
+
+// Computed
+const maxPricePaket = computed(() => {
+  if (pakets.value.length === 0) return null
+  return pakets.value.reduce((max, paket) => 
+    paket.price > max.price ? paket : max
+  , pakets.value[0])
+})
+
+// Functions
 const fetchCabinets = async () => {
   loadingCabinets.value = true
   
@@ -173,6 +226,22 @@ const fetchCabinets = async () => {
     console.error('Error fetching cabinets:', err)
   } finally {
     loadingCabinets.value = false
+  }
+}
+
+const fetchPakets = async () => {
+  try {
+    const response = await fetch(`${BACKEND_API_URL}/api/pakets/`, {
+      headers: {
+        'accept': 'application/json'
+      }
+    })
+    
+    if (response.ok) {
+      pakets.value = await response.json()
+    }
+  } catch (err) {
+    console.error('Error fetching pakets:', err)
   }
 }
 
@@ -219,7 +288,6 @@ const loadPersonalCabinets = async (pageNum = 1) => {
   }
 }
 
-
 const changePage = (newPage) => {
   if (newPage >= 1 && newPage <= totalPages.value) {
     page.value = newPage
@@ -235,7 +303,7 @@ const getGradientColor = (paketName) => {
     'PARTNER': 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
     'BUSINESS': 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
     'PREMIUM': 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-    'VIP': 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
+    'ELITE': 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
   }
   return gradients[paketName] || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
 }
@@ -250,8 +318,37 @@ const formatDate = (dateString) => {
   })
 }
 
-onMounted(() => {
-  fetchCabinets()
+const canUpgrade = (personal) => {
+  if (!maxPricePaket.value) return false
+  return personal.paket_id !== maxPricePaket.value.id
+}
+
+const openUpgradeModal = (personal) => {
+  selectedPersonalId.value = personal.id
+  showUpgradeModal.value = true
+}
+
+const closeUpgradeModal = () => {
+  showUpgradeModal.value = false
+  selectedPersonalId.value = ''
+}
+
+const handleUpgradeSuccess = async () => {
+  closeUpgradeModal()
+  await loadPersonalCabinets(page.value)
+  
+  // Show success notification
+  toast.value = {
+    show: true,
+    message: 'Апгрейд успешно выполнен!',
+    type: 'success',
+    duration: 3000
+  }
+}
+
+onMounted(async () => {
+  await fetchPakets()
+  await fetchCabinets()
 })
 </script>
 
@@ -296,33 +393,6 @@ onMounted(() => {
   padding: 1.5rem;
   margin-bottom: 2rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.selector-label {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  color: #495057;
-  margin-bottom: 0.75rem;
-}
-
-.cabinet-select {
-  width: 100%;
-  padding: 0.875rem 1rem;
-  border: 2px solid #e9ecef;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 500;
-  color: #495057;
-  background: white;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.cabinet-select:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
 }
 
 /* Modern Toggle Switch */
@@ -537,13 +607,24 @@ onMounted(() => {
   background: #f8f9fa;
 }
 
-.sequence-badge {
-  padding: 0.25rem 0.75rem;
-  background: white;
-  color: #495057;
-  border-radius: 8px;
-  font-size: 12px;
+.btn-upgrade {
+  padding: 0.625rem 1.25rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
   font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-upgrade:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 /* Pagination */
@@ -594,6 +675,10 @@ onMounted(() => {
   color: white;
   font-size: 14px;
   font-weight: 600;
+}
+
+.me-2 {
+  margin-right: 0.5rem;
 }
 
 /* Mobile optimizations */
