@@ -329,9 +329,9 @@
                 <span class="summary-label">Сумма товаров (USD):</span>
                 <span class="summary-value">${{ selectedProductsTotal.toFixed(2) }}</span>
               </div>
-              <div class="summary-item" v-if="selectedNewPackage?.referral_bonus">
+              <div class="summary-item" v-if="referralBonusDifference > 0">
                 <span class="summary-label">Реферальный бонус:</span>
-                <span class="summary-value" style="color: #dc3545;">-${{ selectedNewPackage.referral_bonus.toFixed(2) }}</span>
+                <span class="summary-value" style="color: #dc3545;">-${{ referralBonusDifference.toFixed(2) }}</span>
               </div>
               <div class="summary-item total-item">
                 <span class="summary-label">Итого к оплате (USD):</span>
@@ -519,10 +519,16 @@ const availableBudget = computed(() => {
   return selectedNewPackage.value.price - currentPackage.value.price
 })
 
+const referralBonusDifference = computed(() => {
+  if (!currentPackage.value || !selectedNewPackage.value) return 0
+  const newBonus = selectedNewPackage.value.referral_bonus || 0
+  const oldBonus = currentPackage.value.referral_bonus || 0
+  return newBonus - oldBonus
+})
+
 const finalTotal = computed(() => {
   if (!selectedNewPackage.value) return selectedProductsTotal.value
-  const referralBonus = selectedNewPackage.value.referral_bonus || 0
-  return Math.max(0, selectedProductsTotal.value - referralBonus)
+  return Math.max(0, selectedProductsTotal.value - referralBonusDifference.value)
 })
 
 // Watch for cabinetId changes
