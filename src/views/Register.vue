@@ -770,13 +770,21 @@
                   <span class="summary-label">Способ оплаты:</span>
                   <span class="summary-value">{{ getSelectedPaymentMethodName() }}</span>
                 </div>
-                <div class="summary-item total-item">
-                  <span class="summary-label">Итого (USD):</span>
-                  <span class="summary-value total-value">${{ selectedProductsTotal.toFixed(2) }}</span>
+                <div class="summary-item">
+                  <span class="summary-label">Сумма товаров (USD):</span>
+                  <span class="summary-value">${{ selectedProductsTotal.toFixed(2) }}</span>
+                </div>
+                <div class="summary-item" v-if="referralBonus > 0">
+                  <span class="summary-label">Реферальный бонус:</span>
+                  <span class="summary-value" style="color: #dc3545;">-${{ referralBonus.toFixed(2) }}</span>
                 </div>
                 <div class="summary-item total-item">
-                  <span class="summary-label">Итого (сом):</span>
-                  <span class="summary-value total-value">{{ (selectedProductsTotal * 85).toFixed(2) }} сом</span>
+                  <span class="summary-label">Итого к оплате (USD):</span>
+                  <span class="summary-value total-value">${{ finalTotal.toFixed(2) }}</span>
+                </div>
+                <div class="summary-item total-item">
+                  <span class="summary-label">Итого к оплате (сом):</span>
+                  <span class="summary-value total-value">{{ (finalTotal * 85).toFixed(2) }} сом</span>
                 </div>
               </div>
             </div>
@@ -990,6 +998,16 @@ const remainingAmount = computed(() => {
   // Positive value means user needs to add more products
   // Negative value means user exceeded minimum (which is allowed)
   return packagePrice - selectedProductsTotal.value
+})
+
+const referralBonus = computed(() => {
+  if (!selectedPackage.value) return 0
+  const bonus = selectedPackage.value.referral_bonus || 0
+  return typeof bonus === 'string' ? parseFloat(bonus) : bonus
+})
+
+const finalTotal = computed(() => {
+  return Math.max(0, selectedProductsTotal.value - referralBonus.value)
 })
 
 const isProductSelected = (productId) => {
@@ -1491,8 +1509,8 @@ const sendVerificationCode = async () => {
     }
 
     // Step 3: Start Mbank payment (always, even if changing phone)
-    // Calculate amount: (total product amount * 85) * 100 = tyiyn
-    const amountTyiyn = Math.round(selectedProductsTotal.value * 85 * 100)
+    // Calculate amount: (final total after bonus * 85) * 100 = tyiyn
+    const amountTyiyn = Math.round(finalTotal.value * 85 * 100)
     
     const paymentResponse = await fetch(`${MB_API_URL}/api/payment/start`, {
       method: 'POST',
@@ -1550,7 +1568,7 @@ const resendCode = async () => {
   
   try {
     const cleanPhone = verificationPhone.value
-    const amountTyiyn = Math.round(selectedProductsTotal.value * 85 * 100)
+    const amountTyiyn = Math.round(finalTotal.value * 85 * 100)
     
     const paymentResponse = await fetch(`${MB_API_URL}/api/payment/start`, {
       method: 'POST',
@@ -1968,7 +1986,7 @@ const handleSubmit = async () => {
     if (selectedMethod && selectedMethod.name === 'Мбанк') {
       // Initiate Mbank payment
       const cleanPhone = verificationPhone.value.replace(/[\s\-\(\)]/g, '')
-      const amountTyiyn = Math.round(selectedProductsTotal.value * 85 * 100) // USD to KGS to tyiyn
+      const amountTyiyn = Math.round(finalTotal.value * 85 * 100) // Final total (after bonus) to KGS to tyiyn
       
       const paymentResponse = await fetch(`${MB_API_URL}/api/payment/start`, {
         method: 'POST',
