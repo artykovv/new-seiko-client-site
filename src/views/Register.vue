@@ -200,10 +200,7 @@
                 placeholder="996 XXX XXX XXX"
               />
             </div>
-          </div>
 
-          <!-- Step 3: Additional Passport Info -->
-          <div v-show="currentStep === 3" class="form-step">
             <div class="form-group">
               <label for="bank" class="form-label">
                 <i class="bi bi-bank me-2"></i>Банк
@@ -244,8 +241,8 @@
             </div>
           </div>
 
-          <!-- Step 4: Cabinet Info -->
-          <div v-show="currentStep === 4" class="form-step">
+          <!-- Step 3: Cabinet Info -->
+          <div v-show="currentStep === 3" class="form-step">
             <div class="form-group">
               <label for="code" class="form-label">
                 <i class="bi bi-key me-2"></i>Код кабинета
@@ -409,8 +406,8 @@
             </div>
           </div>
 
-          <!-- Step 5: Product Selection -->
-          <div v-show="currentStep === 5" class="form-step">
+          <!-- Step 4: Product Selection -->
+          <div v-show="currentStep === 4" class="form-step">
             <div class="package-selector-section mb-3">
               <label for="paket_select_step5" class="form-label">
                 <i class="bi bi-box me-2"></i>Выбранный пакет
@@ -534,10 +531,27 @@
                 <span class="summary-value text-success">+${{ (selectedProductsTotal - (selectedPackage?.price || 0)).toFixed(2) }}</span>
               </div>
             </div>
+
+            <!-- Self-pickup checkbox -->
+            <div class="delivery-info mt-4">
+              <div class="form-check">
+                <input
+                  type="checkbox"
+                  class="form-check-input"
+                  id="self_pickup"
+                  v-model="selfPickup"
+                  checked
+                />
+                <label class="form-check-label" for="self_pickup">
+                  <i class="bi bi-box-seam me-2"></i>Самовывоз
+                </label>
+              </div>
+              <small class="form-text text-muted">Товары будут готовы к выдаче после оплаты</small>
+            </div>
           </div>
 
-          <!-- Step 6: Payment Method -->
-          <div v-show="currentStep === 6" class="form-step">
+          <!-- Step 5: Payment Method -->
+          <div v-show="currentStep === 5" class="form-step">
             <!-- Payment Method Selection -->
             <div v-if="!showPhoneVerification && !showCodeVerification && !showSummary" class="payment-method-section">
               <label class="form-label">
@@ -790,8 +804,8 @@
             </div>
           </div>
 
-          <!-- Step 7: Success Screen -->
-          <div v-show="currentStep === 7" class="form-step">
+          <!-- Step 6: Success Screen -->
+          <div v-show="currentStep === 6" class="form-step">
             <div class="success-screen">
               <!-- Success Icon -->
               <div class="success-icon-container">
@@ -852,7 +866,7 @@
           <!-- Navigation Buttons -->
           <div class="form-navigation">
             <button
-              v-if="currentStep > 1 && currentStep < 7 && !showCodeVerification && !showSummary"
+              v-if="currentStep > 1 && currentStep < 6 && !showCodeVerification && !showSummary"
               type="button"
               class="btn btn-secondary"
               @click="previousStep"
@@ -861,7 +875,7 @@
             </button>
 
             <button
-              v-if="currentStep < 6"
+              v-if="currentStep < 5"
               type="submit"
               class="btn btn-primary"
             >
@@ -870,7 +884,7 @@
 
             <!-- Step 6: Payment Method Selection - Show Далее -->
             <button
-              v-if="currentStep === 6 && !showPhoneVerification && !showCodeVerification && !showSummary"
+              v-if="currentStep === 5 && !showPhoneVerification && !showCodeVerification && !showSummary"
               type="button"
               class="btn btn-primary"
               @click="proceedToNextStep"
@@ -881,7 +895,7 @@
 
             <!-- Step 6: Phone Verification - Send Code -->
             <button
-              v-if="currentStep === 6 && showPhoneVerification && !showCodeVerification && !showSummary"
+              v-if="currentStep === 5 && showPhoneVerification && !showCodeVerification && !showSummary"
               type="button"
               class="btn btn-primary"
               @click="sendVerificationCode"
@@ -893,7 +907,7 @@
 
             <!-- Step 6: Code Verification - Confirm Payment -->
             <button
-              v-if="currentStep === 6 && showCodeVerification && !showSummary"
+              v-if="currentStep === 5 && showCodeVerification && !showSummary"
               type="button"
               class="btn btn-success"
               @click="confirmPayment"
@@ -906,7 +920,7 @@
 
             <!-- Step 6: Summary View - Complete Registration or Login -->
             <button
-              v-if="currentStep === 6 && showSummary && !paymentStatusPolling"
+              v-if="currentStep === 5 && showSummary && !paymentStatusPolling"
               type="button"
               class="btn btn-success"
               :disabled="loading"
@@ -919,7 +933,7 @@
 
             <!-- Step 7: Success Screen - Login Button -->
             <button
-              v-if="currentStep === 7"
+              v-if="currentStep === 6"
               type="button"
               class="btn btn-success btn-lg"
               @click="router.push({ path: '/login', query: { registered: 'true' } })"
@@ -946,11 +960,10 @@ import { BACKEND_API_URL, MB_API_URL } from '../config'
 
 const router = useRouter()
 
-const steps = ['Личные данные', 'Паспорт', 'Доп. инфо', 'Кабинет', 'Товары', 'Оплата', 'Результат']
+const steps = ['Личные данные', 'Паспорт', 'Кабинет', 'Товары', 'Оплата', 'Результат']
 const stepTitles = [
   'Личная информация',
-  'Паспортные данные',
-  'Дополнительная информация',
+  'Паспортные и дополнительные данные',
   'Настройка кабинета',
   'Выбор товаров',
   'Способ оплаты',
@@ -958,8 +971,7 @@ const stepTitles = [
 ]
 const stepSubtitles = [
   'Введите ваши основные данные',
-  'Заполните паспортную информацию',
-  'Укажите банковские данные',
+  'Заполните паспортную и дополнительную информацию',
   'Настройте ваш кабинет',
   'Выберите товары минимум на сумму пакета (можно больше)',
   'Выберите способ оплаты и завершите регистрацию',
@@ -1019,6 +1031,9 @@ const successMessage = ref('') // Green success messages
 
 // Summary view
 const showSummary = ref(false)
+
+// Self-pickup checkbox
+const selfPickup = ref(true)
 
 const formData = ref({
   email: '',
@@ -1769,7 +1784,7 @@ const checkPaymentStatus = async () => {
       error.value = ''
       successMessage.value = ''
       // Move to step 7 - success screen
-      currentStep.value = 7
+      currentStep.value = 6
       return
     }
     
@@ -1843,7 +1858,7 @@ const formatTimer = (seconds) => {
 
 const previousStep = () => {
   // If on step 6 and showing summary, go back to payment method selection
-  if (currentStep.value === 6 && showSummary.value) {
+  if (currentStep.value === 5 && showSummary.value) {
     showSummary.value = false
     
     // If it was Mbank with verification, reset to payment selection
@@ -1862,7 +1877,7 @@ const previousStep = () => {
   }
   
   // If on step 6 and showing code verification, go back to phone input
-  if (currentStep.value === 6 && showCodeVerification.value) {
+  if (currentStep.value === 5 && showCodeVerification.value) {
     showCodeVerification.value = false
     showPhoneVerification.value = true
     verificationCode.value = ''
@@ -1874,7 +1889,7 @@ const previousStep = () => {
   }
   
   // If on step 6 and showing phone verification, go back to payment selection
-  if (currentStep.value === 6 && showPhoneVerification.value) {
+  if (currentStep.value === 5 && showPhoneVerification.value) {
     showPhoneVerification.value = false
     verificationPhone.value = ''
     return
@@ -1963,7 +1978,7 @@ const validateCurrentStep = () => {
   }
   
   // Step 5: Product Selection
-  if (currentStep.value === 5) {
+  if (currentStep.value === 4) {
     if (selectedProducts.value.length === 0) {
       error.value = 'Пожалуйста, выберите хотя бы один товар'
       return false
@@ -1975,7 +1990,7 @@ const validateCurrentStep = () => {
   }
   
   // Step 6: Payment Method
-  if (currentStep.value === 6) {
+  if (currentStep.value === 5) {
     if (!formData.value.order.payment_method_id) {
       error.value = 'Пожалуйста, выберите способ оплаты'
       return false
@@ -1990,17 +2005,17 @@ const handleNext = async () => {
     return
   }
   
-  if (currentStep.value < 6) {
+  if (currentStep.value < 5) {
     currentStep.value++
     error.value = ''
     
     // Load products when entering step 5
-    if (currentStep.value === 5 && products.value.length === 0) {
+    if (currentStep.value === 4 && products.value.length === 0) {
       await fetchProducts()
     }
     
     // Load payment methods when entering step 6
-    if (currentStep.value === 6 && paymentMethods.value.length === 0) {
+    if (currentStep.value === 5 && paymentMethods.value.length === 0) {
       await fetchPaymentMethods()
     }
   } else {
@@ -2093,7 +2108,7 @@ const handleSubmit = async () => {
       
     } else {
       // For cash or other payment methods, move to step 7 (success screen)
-      currentStep.value = 7
+      currentStep.value = 6
     }
     
   } catch (e) {
@@ -3466,5 +3481,41 @@ textarea.form-control {
   padding: 0.75rem 2rem;
   font-size: 1.1rem;
   font-weight: 600;
+}
+
+/* Delivery Info Styles */
+.delivery-info {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  border-left: 4px solid #667eea;
+}
+
+.delivery-info .form-check {
+  margin-bottom: 0.5rem;
+}
+
+.delivery-info .form-check-label {
+  font-weight: 500;
+  color: #495057;
+  cursor: pointer;
+}
+
+.delivery-info .form-check-input {
+  cursor: pointer;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.125rem;
+}
+
+.delivery-info .form-check-input:checked {
+  background-color: #667eea;
+  border-color: #667eea;
+}
+
+.delivery-info .form-text {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
 }
 </style>
