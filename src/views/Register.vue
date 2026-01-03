@@ -790,10 +790,69 @@
             </div>
           </div>
 
+          <!-- Step 7: Success Screen -->
+          <div v-show="currentStep === 7" class="form-step">
+            <div class="success-screen">
+              <!-- Success Icon -->
+              <div class="success-icon-container">
+                <i class="bi bi-check-circle-fill success-icon"></i>
+              </div>
+
+              <h3 class="success-title">Оплата успешна</h3>
+              <p class="success-subtitle">Ваша регистрация завершена</p>
+
+              <!-- User Data Section -->
+              <div class="success-section">
+                <h6 class="success-section-title">
+                  <i class="bi bi-person-circle me-2"></i>Данные пользователя
+                </h6>
+                <div class="success-item">
+                  <span class="success-label">Email (логин):</span>
+                  <span class="success-value">{{ formData.email }}</span>
+                </div>
+                <div class="success-item">
+                  <span class="success-label">ФИО:</span>
+                  <span class="success-value">{{ formData.lastname }} {{ formData.name }} {{ formData.patronymic }}</span>
+                </div>
+                <div class="success-item">
+                  <span class="success-label">Персональный номер:</span>
+                  <span class="success-value">{{ formData.cabinet.code }}</span>
+                </div>
+                <div class="success-item" v-if="selectedSponsor">
+                  <span class="success-label">Спонсор:</span>
+                  <span class="success-value">{{ formatCabinetName(selectedSponsor) }}</span>
+                </div>
+                <div class="success-item" v-if="selectedMentor">
+                  <span class="success-label">Наставник:</span>
+                  <span class="success-value">{{ formatMentorName(selectedMentor) }}</span>
+                </div>
+                <div class="success-item">
+                  <span class="success-label">Название Пакета:</span>
+                  <span class="success-value">{{ selectedPackage?.name }}</span>
+                </div>
+              </div>
+
+              <!-- Order Data Section -->
+              <div class="success-section">
+                <h6 class="success-section-title">
+                  <i class="bi bi-receipt me-2"></i>Данные заказа
+                </h6>
+                <div class="success-item">
+                  <span class="success-label">Номер заказа:</span>
+                  <span class="success-value">{{ createdOrderId || 'N/A' }}</span>
+                </div>
+                <div class="success-item">
+                  <span class="success-label">Метод оплаты:</span>
+                  <span class="success-value">{{ getSelectedPaymentMethodName() }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Navigation Buttons -->
           <div class="form-navigation">
             <button
-              v-if="currentStep > 1 && !showCodeVerification && !showSummary"
+              v-if="currentStep > 1 && currentStep < 7 && !showCodeVerification && !showSummary"
               type="button"
               class="btn btn-secondary"
               @click="previousStep"
@@ -851,11 +910,23 @@
               type="button"
               class="btn btn-success"
               :disabled="loading"
+```
               @click="handleSummaryAction"
             >
               <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
               <i v-else class="bi bi-box-arrow-in-right me-2"></i>
               {{ paymentId.value ? 'Войти' : (loading ? 'Регистрация...' : 'Завершить регистрацию') }}
+            </button>
+
+            <!-- Step 7: Success Screen - Login Button -->
+            <button
+              v-if="currentStep === 7"
+              type="button"
+              class="btn btn-success btn-lg"
+              @click="router.push({ path: '/login', query: { registered: 'true' } })"
+            >
+              <i class="bi bi-box-arrow-in-right me-2"></i>
+              Войти в систему
             </button>
           </div>
         </form>
@@ -876,14 +947,15 @@ import { BACKEND_API_URL, MB_API_URL } from '../config'
 
 const router = useRouter()
 
-const steps = ['Личные данные', 'Паспорт', 'Доп. инфо', 'Кабинет', 'Товары', 'Оплата']
+const steps = ['Личные данные', 'Паспорт', 'Доп. инфо', 'Кабинет', 'Товары', 'Оплата', 'Результат']
 const stepTitles = [
   'Личная информация',
   'Паспортные данные',
   'Дополнительная информация',
   'Настройка кабинета',
   'Выбор товаров',
-  'Способ оплаты'
+  'Способ оплаты',
+  'Регистрация завершена'
 ]
 const stepSubtitles = [
   'Введите ваши основные данные',
@@ -891,7 +963,8 @@ const stepSubtitles = [
   'Укажите банковские данные',
   'Настройте ваш кабинет',
   'Выберите товары минимум на сумму пакета (можно больше)',
-  'Выберите способ оплаты и завершите регистрацию'
+  'Выберите способ оплаты и завершите регистрацию',
+  'Ваша регистрация успешно завершена'
 ]
 
 const currentStep = ref(1)
@@ -1691,11 +1764,13 @@ const checkPaymentStatus = async () => {
     
     // Final statuses - stop polling
     if (statusData.code === 330) {
-      // Success!
+      // Success! Move to step 7
       stopPaymentStatusPolling()
       paymentStatusMessage.value = statusData.message || 'Оплата успешно завершена!'
       error.value = ''
       successMessage.value = ''
+      // Move to step 7 - success screen
+      currentStep.value = 7
       return
     }
     
@@ -2018,11 +2093,8 @@ const handleSubmit = async () => {
       error.value = ''
       
     } else {
-      // For cash or other payment methods, redirect to login
-      router.push({
-        path: '/login',
-        query: { registered: 'true' }
-      })
+      // For cash or other payment methods, move to step 7 (success screen)
+      currentStep.value = 7
     }
     
   } catch (e) {
@@ -3307,5 +3379,93 @@ textarea.form-control {
     width: 36px;
     height: 36px;
   }
+}
+
+/* Success Screen Styles */
+.success-screen {
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.success-icon-container {
+  margin-bottom: 1.5rem;
+}
+
+.success-icon {
+  font-size: 5rem;
+  color: #28a745;
+  animation: scaleIn 0.5s ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.success-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #212529;
+  margin-bottom: 0.5rem;
+}
+
+.success-subtitle {
+  font-size: 1rem;
+  color: #6c757d;
+  margin-bottom: 2rem;
+}
+
+.success-section {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+
+.success-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.success-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.success-item:last-child {
+  border-bottom: none;
+}
+
+.success-label {
+  font-weight: 500;
+  color: #6c757d;
+  font-size: 0.95rem;
+}
+
+.success-value {
+  font-weight: 600;
+  color: #212529;
+  font-size: 0.95rem;
+  text-align: right;
+}
+
+.btn-lg {
+  padding: 0.75rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
 }
 </style>
