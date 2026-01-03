@@ -910,7 +910,6 @@
               type="button"
               class="btn btn-success"
               :disabled="loading"
-```
               @click="handleSummaryAction"
             >
               <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
