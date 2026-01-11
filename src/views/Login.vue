@@ -93,6 +93,10 @@
           <a href="#" class="footer-link">Забыли пароль?</a>
           <span class="footer-separator">•</span>
           <router-link to="/register" class="footer-link">Регистрация</router-link>
+          <span class="footer-separator">•</span>
+          <a href="https://admins.seiko-global.com/" target="_blank" rel="noopener noreferrer" class="footer-link admin-link">
+            <i class="bi bi-shield-lock me-1"></i>Войти как администратор
+          </a>
         </div>
       </div>
     </div>
